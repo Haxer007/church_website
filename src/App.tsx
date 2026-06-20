@@ -99,7 +99,7 @@ function ExternalLink({ href, children, variant = "light" }: { href: string; chi
       href={href}
       target="_blank"
       rel="noreferrer"
-      className={`inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-semibold transition hover:-translate-y-0.5 focus:outline-none focus:ring-4 ${styles}`}
+      className={`inline-flex items-center justify-center rounded-full px-6 py-3.5 text-sm font-semibold leading-none transition hover:-translate-y-0.5 focus:outline-none focus:ring-4 ${styles}`}
     >
       {children}
     </a>
@@ -777,9 +777,9 @@ export default function App() {
                   href={prayerWhatsappLink}
                   target="_blank"
                   rel="noreferrer"
-                  className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-[#223328] dark:bg-[#2a3f32] px-6 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#31483a] focus:outline-none focus:ring-4 focus:ring-[#223328]/20"
+                  className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-[#223328] dark:bg-[#2a3f32] px-6 py-3.5 text-sm font-semibold leading-none text-white transition hover:-translate-y-0.5 hover:bg-[#31483a] focus:outline-none focus:ring-4 focus:ring-[#223328]/20"
                 >
-                  Send via WhatsApp
+                  {t.sendWhatsapp}
                 </a>
               </form>
             </div>
@@ -843,4 +843,8 @@ export default function App() {
               <button onClick={() => handleLangChange('hi')} className="rounded-full bg-white dark:bg-[#1e1e1e] px-5 py-3 font-semibold text-[#24342b] dark:text-[#e4e4e7] shadow hover:bg-[#d8b14c] hover:text-white transition">हिंदी (Hindi)</button>
             </div>
           </div>
-    
+        </div>
+      )}
+    </div>
+  );
+}
