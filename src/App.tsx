@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { translations, Language } from "./translations";
+import 'add-to-calendar-button';
 
 
 const mapsLink = "https://maps.app.goo.gl/QuRYUhwUz341j8hTA";
@@ -99,7 +100,7 @@ function ExternalLink({ href, children, variant = "light" }: { href: string; chi
       href={href}
       target="_blank"
       rel="noreferrer"
-      className={`inline-flex items-center justify-center rounded-full px-6 py-3.5 text-sm font-semibold leading-none transition hover:-translate-y-0.5 focus:outline-none focus:ring-4 ${styles}`}
+      className={`inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-semibold transition hover:-translate-y-0.5 focus:outline-none focus:ring-4 ${styles}`}
     >
       {children}
     </a>
@@ -347,16 +348,16 @@ export default function App() {
           <div className="hidden items-center gap-7 text-sm font-medium text-[#3f4d43] dark:text-[#a1a1aa] md:flex">
             {/* Font size control */}
             <div className="flex items-center gap-1 border border-[#dfd2bd] dark:border-[#333333] rounded-full px-2 py-0.5 bg-white/40 dark:bg-black/20 select-none">
-              <button 
-                onClick={() => handleFontSizeChange(fontSize - 10)} 
+              <button
+                onClick={() => handleFontSizeChange(fontSize - 10)}
                 className="text-xs font-bold text-[#8a5f2b] dark:text-[#d8b14c] hover:opacity-80 px-1.5 focus:outline-none"
                 title="Decrease Text Size"
               >
                 A-
               </button>
               <span className="text-[11px] font-bold text-[#3f4d43] dark:text-[#a1a1aa] min-w-[32px] text-center">{fontSize}%</span>
-              <button 
-                onClick={() => handleFontSizeChange(fontSize + 10)} 
+              <button
+                onClick={() => handleFontSizeChange(fontSize + 10)}
                 className="text-xs font-bold text-[#8a5f2b] dark:text-[#d8b14c] hover:opacity-80 px-1.5 focus:outline-none"
                 title="Increase Text Size"
               >
@@ -415,19 +416,19 @@ export default function App() {
                       {isDarkMode ? "☀️" : "🌙"}
                     </button>
                   </span>
-                  
+
                   {/* Font Size controls */}
                   <div className="flex items-center gap-1 border border-[#dfd2bd] dark:border-[#333333] rounded-full px-2 py-0.5 bg-white/40 dark:bg-black/20 select-none">
-                    <button 
-                      onClick={() => handleFontSizeChange(fontSize - 10)} 
+                    <button
+                      onClick={() => handleFontSizeChange(fontSize - 10)}
                       className="text-xs font-bold text-[#8a5f2b] dark:text-[#d8b14c] hover:opacity-80 px-1.5 focus:outline-none"
                       title="Decrease Text Size"
                     >
                       A-
                     </button>
                     <span className="text-[11px] font-bold text-[#3f4d43] dark:text-[#a1a1aa] min-w-[30px] text-center">{fontSize}%</span>
-                    <button 
-                      onClick={() => handleFontSizeChange(fontSize + 10)} 
+                    <button
+                      onClick={() => handleFontSizeChange(fontSize + 10)}
                       className="text-xs font-bold text-[#8a5f2b] dark:text-[#d8b14c] hover:opacity-80 px-1.5 focus:outline-none"
                       title="Increase Text Size"
                     >
@@ -550,9 +551,8 @@ export default function App() {
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUpOrLeave}
               onMouseLeave={handleMouseUpOrLeave}
-              className={`flex gap-6 overflow-x-auto pb-12 pt-8 px-5 sm:px-8 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${
-                isDragging ? "cursor-grabbing select-none" : "cursor-grab"
-              } ${isDragging ? "" : "snap-x snap-mandatory scroll-smooth"}`}
+              className={`flex gap-6 overflow-x-auto pb-12 pt-8 px-5 sm:px-8 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${isDragging ? "cursor-grabbing select-none" : "cursor-grab"
+                } ${isDragging ? "" : "snap-x snap-mandatory scroll-smooth"}`}
             >
               {extendedPosters.map((poster, index) => (
                 <div
@@ -639,17 +639,18 @@ export default function App() {
               {t.promiseDesc}
             </p>
             <add-to-calendar-button
-              name="Join the Upcoming Promise and Prayers Session"
-            >{t.addToCalendar}</add-to-calendar-button>
-            {/* <a 
-              href={`https://calendar.google.com/calendar/u/0/r/eventedit?text=${encodeURIComponent(getUpcomingFirstOfMonthData().title)}&dates=${getUpcomingFirstOfMonthData().dates}&details=Join+the+upcoming+church+session+at+ZION+AG+CHURCH.&location=22,%20Maruthi%20Nagar%20Main%20Rd,%20beside%20Amravati%20Hotel,%20Zuzuvadi,%20Maruti%20Nagar,%201st%20Stage,%20BTM%201st%20Stage,%20Bengaluru,%20Karnataka%20560068&pli=1`}
-              target="_blank" 
-              rel="noreferrer"
-              className="inline-flex items-center justify-center rounded-full bg-[#d8b14c] px-8 py-3.5 text-sm font-bold uppercase tracking-widest text-white shadow-lg shadow-[#d8b14c]/30 outline-none transition-all duration-300 hover:-translate-y-1 hover:bg-[#c59e3f] hover:shadow-xl hover:shadow-[#d8b14c]/40 focus:ring-4 focus:ring-[#d8b14c]/50 active:scale-95"
-            >
-              {t.addToCalendar}
-            </a> */}
+              name="Title"
+              options="'Apple','Google'"
+              location="World Wide Web"
+              startDate="2026-06-23"
+              endDate="2026-06-23"
+              startTime="10:15"
+              endTime="23:30"
+              timeZone="EST"
+            ></add-to-calendar-button>
           </div>
+
+
         </section>
 
         <section id="daily-manna" className="relative scroll-mt-24 overflow-hidden px-5 py-16 sm:px-8 lg:py-24">
@@ -777,7 +778,7 @@ export default function App() {
                   href={prayerWhatsappLink}
                   target="_blank"
                   rel="noreferrer"
-                  className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-[#223328] dark:bg-[#2a3f32] px-6 py-3.5 text-sm font-semibold leading-none text-white transition hover:-translate-y-0.5 hover:bg-[#31483a] focus:outline-none focus:ring-4 focus:ring-[#223328]/20"
+                  className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-[#223328] dark:bg-[#2a3f32] px-6 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#31483a] focus:outline-none focus:ring-4 focus:ring-[#223328]/20"
                 >
                   {t.sendWhatsapp}
                 </a>

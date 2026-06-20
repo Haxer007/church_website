@@ -25,6 +25,12 @@ body {
   letter-spacing: normal !important;
 }
 
+.indic-lang .rounded-full,
+.indic-lang button,
+.indic-lang a[class*="rounded-full"] {
+  line-height: 1 !important;
+}
+
 /* ==========================================
    2. Keyframes
    ========================================== */
