@@ -1,0 +1,171 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ==========================================
+   1. Base & Global Styles
+   ========================================== */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: #f7f2e8;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.telugu-font {
+  font-family: "Noto Sans Telugu", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.indic-lang * {
+  letter-spacing: normal !important;
+}
+
+/* ==========================================
+   2. Keyframes
+   ========================================== */
+
+/* Header Slide-Down (uses top to prevent transform/backdrop-filter conflict) */
+@keyframes headerDrop {
+  from {
+    opacity: 0;
+    top: -18px;
+  }
+
+  to {
+    opacity: 1;
+    top: 0;
+  }
+}
+
+/* Mobile Menu Entrance (uses margin-top to prevent transform/backdrop-filter conflict) */
+@keyframes mobileMenuEntrance {
+  from {
+    opacity: 0;
+    margin-top: 18px;
+  }
+
+  to {
+    opacity: 1;
+    margin-top: 0;
+  }
+}
+
+/* Hero Card Rise-In (uses margin-top to prevent transform/backdrop-filter conflict) */
+@keyframes riseInNoTransform {
+  from {
+    opacity: 0;
+    margin-top: 18px;
+  }
+
+  to {
+    opacity: 1;
+    margin-top: 0;
+  }
+}
+
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Hero Background subtle alternate zooming */
+@keyframes subtle-zoom {
+  0% {
+    transform: scale(1.04);
+  }
+
+  100% {
+    transform: scale(1.12);
+  }
+}
+
+
+/* ==========================================
+   3. Animation Utility Classes
+   ========================================== */
+.animate-header {
+  animation: headerDrop 700ms ease both;
+}
+
+.hero-photo-motion {
+  animation: subtle-zoom 18s ease-out infinite alternate;
+  will-change: transform;
+}
+
+/* Animates the hero card container using non-transform parameters */
+.animate-hero-copy>* {
+  animation: riseInNoTransform 760ms ease both;
+}
+
+.animate-hero-copy>*:nth-child(2) {
+  animation-delay: 120ms;
+}
+
+.animate-hero-copy>*:nth-child(3) {
+  animation-delay: 220ms;
+}
+
+.animate-hero-copy>*:nth-child(4) {
+  animation-delay: 320ms;
+}
+
+.mobile-menu {
+  animation: mobileMenuEntrance 220ms ease both;
+}
+
+.section-reveal {
+  animation: riseIn 850ms ease both;
+}
+
+/* Fluid bg classes */
+.animate-fluid-1 {
+  animation: fluid-1 15s ease-in-out infinite;
+}
+
+.animate-fluid-2 {
+  animation: fluid-2 20s ease-in-out infinite;
+}
+
+.animate-fluid-3 {
+  animation: fluid-3 12s ease-in-out infinite;
+}
+
+/* Particle classes */
+.animate-particle-1 {
+  animation: particle-1 8s linear infinite;
+}
+
+.animate-particle-2 {
+  animation: particle-2 11s linear infinite 2s;
+}
+
+.animate-particle-3 {
+  animation: particle-3 14s linear infinite 5s;
+}
+
+.animate-particle-4 {
+  animation: particle-4 9s linear infinite 1s;
+}
+
+/* ==========================================
+   4. Accessibility
+   ========================================== */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1
