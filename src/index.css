@@ -7,6 +7,8 @@
    ========================================== */
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 body {
@@ -15,6 +17,8 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 .telugu-font {
@@ -97,6 +101,11 @@ body {
   }
 }
 
+/* Notification progress bar shrink */
+@keyframes shrink {
+  from { width: 100%; }
+  to { width: 0%; }
+}
 
 /* ==========================================
    3. Animation Utility Classes

@@ -1,6 +1,49 @@
 import { useState, useEffect, useRef } from "react";
 import { translations, Language } from "./translations";
-import 'add-to-calendar-button';
+import { AddToCalendarButton } from 'add-to-calendar-button-react';
+import NotificationsContainer from "./NotificationsContainer";
+import {
+  getAnnouncements, getMannaVerses, getVerseDays, getTranslationOverrides,
+  getAnnouncementMode, getSectionVisibility, ensureArray,
+  Announcement, MannaVerse, VerseDayEntry, TranslationOverrides, AnnouncementMode, SectionVisibility,
+  LAST_UPDATED_LOCAL_KEY,
+} from "./adminStore";
+import { fetchAllChurchData, subscribeToFirebase } from "./firebaseDb";
+import { MOOD_MANNA_DATA, MoodVerse } from "./moodManna";
+
+interface MoodCategory {
+  key: string;
+  label: string;
+  emoji: string;
+  group: 'comfort' | 'wisdom';
+}
+
+const MOOD_CATEGORIES: MoodCategory[] = [
+  // Comfort / Hard Times group
+  { key: 'anxiety', label: 'Anxiety & Worry', emoji: '😰', group: 'comfort' },
+  { key: 'depressed', label: 'Depression / Downcast', emoji: '😢', group: 'comfort' },
+  { key: 'pain_sickness', label: 'Sickness & Pain', emoji: '🤒', group: 'comfort' },
+  { key: 'fear', label: 'Fear & Courage', emoji: '😨', group: 'comfort' },
+  { key: 'stress', label: 'Stress & Pressure', emoji: '🤯', group: 'comfort' },
+  { key: 'failure', label: 'Experiencing Failure', emoji: '❌', group: 'comfort' },
+  { key: 'temptation', label: 'Temptation & Desires', emoji: '🔥', group: 'comfort' },
+  { key: 'peer_pressure', label: 'Peer Pressure', emoji: '👥', group: 'comfort' },
+  { key: 'addiction', label: 'Overcoming Addiction', emoji: '⛓️', group: 'comfort' },
+  { key: 'adultery', label: 'Purity & Commitment', emoji: '💔', group: 'comfort' },
+  { key: 'friends_fail', label: 'When Friends Fail', emoji: '🥀', group: 'comfort' },
+  { key: 'away_from_god', label: 'Feeling Away from God', emoji: '☁️', group: 'comfort' },
+  { key: 'abortion', label: 'Comfort & Healing', emoji: '❤️', group: 'comfort' },
+
+  // Hope / Wisdom group
+  { key: 'peace', label: 'Peace & Comfort', emoji: '🕊️', group: 'wisdom' },
+  { key: 'future', label: 'Future & Guidance', emoji: '🌅', group: 'wisdom' },
+  { key: 'relationships', label: 'Godly Relationships', emoji: '🤝', group: 'wisdom' },
+  { key: 'forgiveness', label: 'Forgiveness & Grace', emoji: '✨', group: 'wisdom' },
+];
+
+
+
+
 
 
 const mapsLink = "https://maps.app.goo.gl/QuRYUhwUz341j8hTA";
@@ -107,7 +150,7 @@ function ExternalLink({ href, children, variant = "light" }: { href: string; chi
   );
 }
 
-const dailyMannaVerses = [
+const defaultDailyMannaVerses = [
   {
     verse: '"For I know the plans I have for you," declares the Lord, "plans to prosper you and not to harm you, plans to give you hope and a future."',
     reference: "Jeremiah 29:11",
@@ -134,14 +177,14 @@ const dailyMannaVerses = [
     reflection: "The peace God offers isn’t just the absence of conflict—it’s a deep, unshakeable assurance that He is in control. Breathe in His peace.",
   }
 ];
-const announcementPosters = [
+const defaultAnnouncementPosters = [
   { src: './images/poster_prayer.png', alt: 'Prayer Night', label: '🙏 Prayer Night' },
   { src: './images/poster_youth.png', alt: 'Youth Meeting', label: '⚡ Youth Alive' },
   { src: './images/poster_women.png', alt: 'Women Fellowship', label: '🌸 Women of Faith' },
   { src: './images/poster_revival.png', alt: 'Revival Meeting', label: '🔥 Revival Fire' },
   { src: './images/poster_christmas.png', alt: 'Christmas Celebration', label: '🎄 Christmas' },
 ];
-const extendedPosters = [...announcementPosters, ...announcementPosters, ...announcementPosters];
+
 
 const getUpcomingFirstOfMonthData = () => {
   const now = new Date();
@@ -185,6 +228,15 @@ const DarkFluidBackground = () => (
   </div>
 );
 
+const getUpcomingMonthFirstDay = () => {
+  const now = new Date();
+  const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const yyyy = nextMonth.getFullYear();
+  const mm = String(nextMonth.getMonth() + 1).padStart(2, '0');
+  const dd = '01';
+  return `${yyyy}-${mm}-${dd}`;
+};
+
 export default function App() {
   const [lang, setLang] = useState<Language>(() => (localStorage.getItem('churchLang') as Language) || 'en');
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => localStorage.getItem('churchTheme') === 'dark');
@@ -192,6 +244,109 @@ export default function App() {
     const saved = localStorage.getItem("churchFontSize");
     return saved ? Number(saved) : 100;
   });
+
+  // ─── Reactive admin data (Firebase-first, localStorage fallback) ──────────────
+  function readLocalAdminData() {
+    return {
+      announcements: getAnnouncements().filter(a => a.active) as Announcement[],
+      mannaVerses: getMannaVerses() as MannaVerse[],
+      translationOverrides: getTranslationOverrides() as TranslationOverrides,
+      verseDays: getVerseDays() as VerseDayEntry[],
+      announcementMode: getAnnouncementMode() as AnnouncementMode,
+      sectionVisibility: getSectionVisibility() as SectionVisibility,
+    };
+  }
+
+  const [adminData, setAdminData] = useState(readLocalAdminData);
+  const [firebaseLoaded, setFirebaseLoaded] = useState(false);
+
+  // Merge incoming Firebase data snapshot into state
+  function applyFirebaseSnapshot(raw: Record<string, unknown> | null) {
+    if (!raw) return;
+    setAdminData(prev => ({
+      announcements: raw.announcements !== undefined ? ensureArray<Announcement>(raw.announcements).filter(a => a.active) : prev.announcements,
+      mannaVerses: raw.mannaVerses !== undefined ? ensureArray<MannaVerse>(raw.mannaVerses) : prev.mannaVerses,
+      translationOverrides: raw.translationOverrides !== undefined && typeof raw.translationOverrides === 'object' ? raw.translationOverrides as TranslationOverrides : prev.translationOverrides,
+      verseDays: raw.verseDays !== undefined ? ensureArray<VerseDayEntry>(raw.verseDays) : prev.verseDays,
+      sectionVisibility: raw.sectionVisibility !== undefined && typeof raw.sectionVisibility === 'object' ? raw.sectionVisibility as SectionVisibility : prev.sectionVisibility,
+    }));
+    // Also update localStorage cache so admin panel shows latest data
+    if (raw.announcements) localStorage.setItem('admin_announcements', JSON.stringify(raw.announcements));
+    if (raw.mannaVerses) localStorage.setItem('admin_manna_verses', JSON.stringify(raw.mannaVerses));
+    if (raw.translationOverrides) localStorage.setItem('admin_translation_overrides', JSON.stringify(raw.translationOverrides));
+    if (raw.verseDays) localStorage.setItem('admin_verse_of_day', JSON.stringify(raw.verseDays));
+    if (raw.sectionVisibility) localStorage.setItem('admin_section_visibility', JSON.stringify(raw.sectionVisibility));
+  }
+
+  const ADMIN_LS_KEYS = [
+    'admin_announcements', 'admin_notifications', 'admin_manna_verses',
+    'admin_verse_of_day', 'admin_translation_overrides', 'admin_section_visibility',
+  ];
+
+
+  useEffect(() => {
+    // 1. Initial fetch from Firebase with lastUpdated cache-bust check
+    fetchAllChurchData().then(data => {
+      if (data) {
+        const fbLastUpdated = (data as any).lastUpdated as number | undefined;
+        const localLastUpdated = Number(localStorage.getItem(LAST_UPDATED_LOCAL_KEY) || 0);
+
+        if (fbLastUpdated && fbLastUpdated !== localLastUpdated) {
+          // 🔄 Timestamps differ — flush stale localStorage and re-sync from Firebase
+          console.log('[Sync] Firebase is newer — flushing localStorage cache and syncing');
+          ADMIN_LS_KEYS.forEach(k => localStorage.removeItem(k));
+          localStorage.setItem(LAST_UPDATED_LOCAL_KEY, String(fbLastUpdated));
+        }
+        applyFirebaseSnapshot(data as unknown as Record<string, unknown>);
+      }
+      setFirebaseLoaded(true);
+    });
+
+    // 2. Subscribe to Firebase SSE for real-time updates (works across all devices)
+    const unsubFirebase = subscribeToFirebase(applyFirebaseSnapshot);
+
+    // 3. Also listen to same-tab admin events and cross-tab localStorage events
+    function refreshLocal() { setAdminData(readLocalAdminData()); }
+    window.addEventListener('adminDataChanged', refreshLocal);
+    window.addEventListener('storage', refreshLocal);
+
+    return () => {
+      unsubFirebase();
+      window.removeEventListener('adminDataChanged', refreshLocal);
+      window.removeEventListener('storage', refreshLocal);
+    };
+  }, []);
+
+  // Derive display data from reactive adminData
+  // Always merge: default posters first, then admin-added announcements on top
+  const adminPosters = adminData.announcements.map(a => ({ src: a.src ?? '', alt: a.alt, label: a.label }));
+  // 'replace' mode: only show admin announcements (when any exist); 'merge': show defaults + admin together
+  const announcementPosters = (adminData.announcementMode === 'replace' && adminPosters.length > 0)
+    ? adminPosters
+    : [...defaultAnnouncementPosters, ...adminPosters];
+  const extendedPosters = [...announcementPosters, ...announcementPosters, ...announcementPosters];
+
+
+  // Daily Manna: resolve per-language text if available
+  const dailyMannaVerses = (adminData.mannaVerses.length > 0 ? adminData.mannaVerses : defaultDailyMannaVerses)
+    .map(v => {
+      if (v.verseMode === 'english-only' || !v.langs) return v;
+      const langText = (v.langs as Record<string, string>)[lang];
+      return langText ? { ...v, verse: `"${langText}"` } : v;
+    });
+
+
+  // Merge translation overrides (reactive to lang changes AND admin edits)
+  const baseT = translations[lang];
+  const langOverrides = adminData.translationOverrides[lang];
+  const tRaw = langOverrides ? { ...baseT, ...langOverrides } : baseT;
+
+  // Verse of day for today
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayVerseDay = adminData.verseDays.find(d => d.date === todayStr) ?? null;
+  const todayVerse = todayVerseDay?.verses?.[lang] ?? null;
+  const todayVerseImage = todayVerseDay?.images?.[lang] ?? null;
+
 
   useEffect(() => {
     if (isDarkMode) {
@@ -216,13 +371,27 @@ export default function App() {
   const [showLangModal, setShowLangModal] = useState<boolean>(() => !localStorage.getItem('churchLang'));
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const t = translations[lang];
+  const t = tRaw;
+  const navItems = [
+    { label: t.navHome, href: "#home" },
+    ...(adminData.sectionVisibility?.announcements !== false ? [{ label: t.navAnnouncements, href: "#announcements" }] : []),
+    ...(adminData.sectionVisibility?.ministries !== false ? [{ label: t.navMinistries, href: "#ministries" }] : []),
+    ...(adminData.sectionVisibility?.dailyManna !== false ? [{ label: t.navDailyManna, href: "#daily-manna" }] : []),
+    ...(adminData.sectionVisibility?.manna !== false ? [{ label: "Manna", href: "#manna" }] : []),
+    ...(adminData.sectionVisibility?.contact !== false ? [{ label: t.navContact, href: "#contact" }] : []),
+    ...(adminData.sectionVisibility?.about !== false ? [{ label: t.navAbout, href: "#about" }] : []),
+  ];
+  const upcomingDate = getUpcomingMonthFirstDay();
+
 
   const handleLangChange = (newLang: Language) => {
     setLang(newLang);
     localStorage.setItem('churchLang', newLang);
     setShowLangModal(false);
-    setToastMessage(translations[newLang].changeLangToast);
+    const overridesNow = getTranslationOverrides();
+    const baseNow = translations[newLang];
+    const merged = overridesNow[newLang] ? { ...baseNow, ...overridesNow[newLang] } : baseNow;
+    setToastMessage(merged.changeLangToast);
     setTimeout(() => setToastMessage(null), 4000);
   };
 
@@ -232,6 +401,7 @@ export default function App() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isZoomed, setIsZoomed] = useState(false);
   const carouselRef = useRef<HTMLDivElement>(null);
+  const verseRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
 
   const [isDragging, setIsDragging] = useState(false);
@@ -315,6 +485,48 @@ export default function App() {
     setMannaIndex(newIndex);
   };
 
+  const [selectedMood, setSelectedMood] = useState<string>('');
+  const [activeMoodGroup, setActiveMoodGroup] = useState<'comfort' | 'wisdom' | null>(null);
+  const [moodVerse, setMoodVerse] = useState<MoodVerse | null>(null);
+
+  const handleMoodChange = (moodKey: string) => {
+    setSelectedMood(moodKey);
+    if (!moodKey) {
+      setMoodVerse(null);
+      return;
+    }
+    const list = MOOD_MANNA_DATA[moodKey];
+    if (list && list.length > 0) {
+      const randomItem = list[Math.floor(Math.random() * list.length)];
+      setMoodVerse(randomItem);
+    } else {
+      setMoodVerse(null);
+    }
+  };
+
+  const refreshMoodVerse = () => {
+    if (!selectedMood) return;
+    const list = MOOD_MANNA_DATA[selectedMood];
+    if (list && list.length > 0) {
+      let index = Math.floor(Math.random() * list.length);
+      if (list.length > 1 && moodVerse) {
+        while (list[index].reference === moodVerse.reference) {
+          index = Math.floor(Math.random() * list.length);
+        }
+      }
+      setMoodVerse(list[index]);
+    }
+  };
+
+  useEffect(() => {
+    if (moodVerse && verseRef.current) {
+      setTimeout(() => {
+        verseRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 100);
+    }
+  }, [moodVerse]);
+
+
   const closeMenu = () => setIsMenuOpen(false);
   const prayerMessage = prayerRequest.trim()
     ? `Prayer request: ${prayerRequest.trim()}`
@@ -365,8 +577,20 @@ export default function App() {
               </button>
             </div>
 
-            <button onClick={() => setIsDarkMode(!isDarkMode)} className="text-xl transition hover:scale-110">
-              {isDarkMode ? "☀️" : "🌙"}
+            <button
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              className="text-[#8a5f2b] dark:text-[#d8b14c] transition-all duration-300 hover:scale-110 hover:text-[#b48a52] focus:outline-none flex items-center justify-center"
+              title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            >
+              {isDarkMode ? (
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m0 13.5V21M4.93 4.93l1.59 1.59m10.96 10.96l1.59 1.59M3 12h2.25m13.5 0H21M4.93 19.07l1.59-1.59m10.96-10.96l1.59-1.59M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+                </svg>
+              )}
             </button>
             <select
               value={lang}
@@ -379,7 +603,7 @@ export default function App() {
               <option value="te">TEL</option>
               <option value="hi">HIN</option>
             </select>
-            {getNavigation(t).map((item) => (
+            {navItems.map((item) => (
               <a key={item.href} href={item.href} className="transition hover:text-[#8a5f2b] dark:text-[#d8b14c]">
                 {item.label}
               </a>
@@ -390,14 +614,15 @@ export default function App() {
         {isMenuOpen && (
           <>
             <div className="fixed inset-0 z-40" onClick={closeMenu} aria-hidden="true" />
-            <div onClick={closeMenu} className="mobile-menu relative z-50 border-t border-[#dfd2bd] dark:border-[#333333] bg-[#f7f2e8]/60 dark:bg-[#121212]/60 backdrop-blur-xl px-5 py-5 shadow-2xl shadow-[#3f2c18]/10 md:hidden">
-              <div onClick={(e) => e.stopPropagation()} className="mb-4 space-y-4 border-b border-[#dfd2bd] dark:border-[#333333] pb-4">
+            <div className="mobile-menu relative z-50 border-t border-[#dfd2bd] dark:border-[#333333] bg-[#f7f2e8]/60 dark:bg-[#121212]/60 backdrop-blur-xl px-5 py-5 shadow-2xl shadow-[#3f2c18]/10 md:hidden">
+              <div className="mb-4 space-y-4 border-b border-[#dfd2bd] dark:border-[#333333] pb-4">
                 {/* Language Row */}
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-[#8a5f2b] dark:text-[#d8b14c]">Language</span>
                   <select
                     value={lang}
                     onChange={(e) => handleLangChange(e.target.value as Language)}
+                    onClick={(e) => e.stopPropagation()}
                     className="bg-[#fffdf9] dark:bg-[#1e1e1e] px-3 py-1 rounded-lg font-semibold text-[#223328] dark:text-white outline-none border border-[#dfd2bd] dark:border-[#333333]"
                   >
                     <option value="en">English</option>
@@ -412,13 +637,31 @@ export default function App() {
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-[#8a5f2b] dark:text-[#d8b14c] flex items-center gap-4">
                     Theme
-                    <button onClick={() => setIsDarkMode(!isDarkMode)} className="text-xl transition hover:scale-110 focus:outline-none">
-                      {isDarkMode ? "☀️" : "🌙"}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsDarkMode(!isDarkMode);
+                      }}
+                      className="text-[#8a5f2b] dark:text-[#d8b14c] transition-all duration-300 hover:scale-110 focus:outline-none flex items-center justify-center"
+                      title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                    >
+                      {isDarkMode ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m0 13.5V21M4.93 4.93l1.59 1.59m10.96 10.96l1.59 1.59M3 12h2.25m13.5 0H21M4.93 19.07l1.59-1.59m10.96-10.96l1.59-1.59M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+                        </svg>
+                      )}
                     </button>
                   </span>
 
                   {/* Font Size controls */}
-                  <div className="flex items-center gap-1 border border-[#dfd2bd] dark:border-[#333333] rounded-full px-2 py-0.5 bg-white/40 dark:bg-black/20 select-none">
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex items-center gap-1 border border-[#dfd2bd] dark:border-[#333333] rounded-full px-2 py-0.5 bg-white/40 dark:bg-black/20 select-none"
+                  >
                     <button
                       onClick={() => handleFontSizeChange(fontSize - 10)}
                       className="text-xs font-bold text-[#8a5f2b] dark:text-[#d8b14c] hover:opacity-80 px-1.5 focus:outline-none"
@@ -438,7 +681,7 @@ export default function App() {
                 </div>
               </div>
               <div className="grid gap-1">
-                {getNavigation(t).map((item) => (
+                {navItems.map((item) => (
                   <a
                     key={item.href}
                     href={item.href}
@@ -485,7 +728,9 @@ export default function App() {
           </div>
         </section>
 
-        <section id="about" className="relative scroll-mt-24 overflow-hidden bg-[#f7f2e8] dark:bg-[#121212] px-5 py-16 sm:px-8 lg:py-24">
+        {adminData.sectionVisibility?.about !== false && (
+          <section id="about" className="relative scroll-mt-24 overflow-hidden bg-[#f7f2e8] dark:bg-[#121212] px-5 py-16 sm:px-8 lg:py-24">
+
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.8)_0%,transparent_70%)] dark:bg-[radial-gradient(circle_at_50%_0%,rgba(216,177,76,0.1)_0%,transparent_70%)]" />          <DarkFluidBackground />
 
           <div className="relative z-10 mx-auto max-w-4xl text-center">
@@ -532,9 +777,13 @@ export default function App() {
               </div>
             </div>
           </div>
-        </section>
+          </section>
+        )}
 
-        <section id="announcements" className="section-reveal scroll-mt-24 px-5 py-16 sm:px-8 lg:py-24 relative overflow-hidden">
+
+        {adminData.sectionVisibility?.announcements !== false && (
+          <section id="announcements" className="section-reveal scroll-mt-24 px-5 py-16 sm:px-8 lg:py-24 relative overflow-hidden">
+
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_100%_100%,rgba(216,177,76,0.08)_0%,transparent_50%)]" />          <DarkFluidBackground />
 
           <div className="mx-auto max-w-6xl text-center relative z-10">
@@ -596,9 +845,13 @@ export default function App() {
               ))}
             </div>
           </div>
-        </section>
+          </section>
+        )}
 
-        <section id="ministries" className="relative scroll-mt-24 overflow-hidden bg-[#f7f2e8] dark:bg-[#121212] px-3 py-16 sm:px-8 lg:py-24">
+
+        {adminData.sectionVisibility?.ministries !== false && (
+          <section id="ministries" className="relative scroll-mt-24 overflow-hidden bg-[#f7f2e8] dark:bg-[#121212] px-3 py-16 sm:px-8 lg:py-24">
+
           {/* Radial Glow Background */}
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.8)_0%,transparent_70%)] dark:bg-[radial-gradient(circle_at_50%_0%,rgba(216,177,76,0.1)_0%,transparent_70%)]" />
 
@@ -630,30 +883,44 @@ export default function App() {
               ))}
             </div>
           </div>
-        </section>
+          </section>
+        )}
 
-        <section id="promise-prayers" className="relative px-5 py-16 sm:px-8 lg:py-24 bg-white/40 dark:bg-[#121212]/80">          <DarkFluidBackground />
+
+        {adminData.sectionVisibility?.promisePrayers !== false && (
+          <section id="promise-prayers" className="relative px-5 py-16 sm:px-8 lg:py-24 bg-white/40 dark:bg-[#121212]/80">          <DarkFluidBackground />
+
           <div className="mx-auto max-w-4xl rounded-[32px] border border-[#d8b14c]/30 bg-white/70 dark:bg-black/30 dark:border-white/10 p-8 shadow-[0_12px_40px_rgba(154,107,49,0.08)] backdrop-blur-xl sm:p-12 text-center">
             <h2 className="font-serif text-3xl sm:text-4xl text-[#223328] dark:text-white font-bold mb-4">{t.promisePrayers}</h2>
             <p className="text-lg leading-relaxed text-[#4f5c53] dark:text-gray-200 mb-8">
               {t.promiseDesc}
             </p>
-            <add-to-calendar-button
-              name="Title"
-              options="'Apple','Google'"
-              location="World Wide Web"
-              startDate="2026-06-23"
-              endDate="2026-06-23"
-              startTime="10:15"
-              endTime="23:30"
-              timeZone="EST"
-            ></add-to-calendar-button>
+            <div className="flex justify-center">
+              <AddToCalendarButton
+                name={t.promisePrayers}
+                description={t.promiseDesc}
+                options={['Apple', 'Google']}
+                location="Zion AG Church, Madiwala, Bengaluru"
+                startDate={upcomingDate}
+                endDate={upcomingDate}
+                startTime="05:00"
+                endTime="06:30"
+                timeZone="Asia/Kolkata"
+                recurrence="RRULE:FREQ=MONTHLY;BYMONTHDAY=1"
+                hideBackground={true}
+                hideCheckmark={true}
+              />
+            </div>
           </div>
 
 
-        </section>
+          </section>
+        )}
 
-        <section id="daily-manna" className="relative scroll-mt-24 overflow-hidden px-5 py-16 sm:px-8 lg:py-24">
+
+        {adminData.sectionVisibility?.dailyManna !== false && (
+          <section id="daily-manna" className="relative scroll-mt-24 overflow-hidden px-5 py-16 sm:px-8 lg:py-24">
+
           {/* Subtle background decoration */}
           <div className="pointer-events-none absolute inset-0 bg-[#f7f2e8] dark:bg-[#121212]">
             <div className="absolute left-1/2 top-1/2 h-[800px] w-[800px] -translate-x-1/2 -translate-y-1/2 bg-[radial-gradient(circle,rgba(216,177,76,0.06)_0%,transparent_70%)]" />
@@ -694,10 +961,137 @@ export default function App() {
                 {t.newVerse.split("↻")[0]}<span className="text-lg transition-transform duration-500 group-hover:rotate-180">↻</span>
               </span>
             </button>
-          </div>
-        </section>
 
-        <section id="contact" className="scroll-mt-24 px-5 py-16 sm:px-8 lg:py-24">
+            {/* Verse of Day Image */}
+            {todayVerseImage && (
+              <div className="mt-10 mx-auto max-w-3xl">
+                <p className="text-xs font-semibold uppercase tracking-widest text-[#9a6b31] dark:text-[#d8b14c] mb-4">✦ Today's Verse Image ✦</p>
+                <div className="rounded-[24px] overflow-hidden border border-white/60 dark:border-white/10 shadow-[0_12px_40px_rgba(61,42,23,0.1)]">
+                  <img
+                    src={todayVerseImage}
+                    alt="Verse of the day"
+                    className="w-full object-contain max-h-[500px]"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Verse of Day text if set by admin */}
+            {todayVerse && (
+              <div className="mt-8 mx-auto max-w-3xl rounded-[24px] border border-[#d8b14c]/30 bg-[#d8b14c]/5 dark:bg-[#d8b14c]/10 p-6 text-center">
+                <p className="text-xs font-bold uppercase tracking-widest text-[#9a6b31] dark:text-[#d8b14c] mb-3">✦ Pastor's Verse for Today ✦</p>
+                <blockquote className="font-serif text-xl text-[#24342b] dark:text-[#e4e4e7] italic leading-relaxed">{todayVerse.verse}</blockquote>
+                <p className="mt-3 font-bold text-[#9a6b31] dark:text-[#d8b14c]">{todayVerse.reference}</p>
+                {todayVerse.reflection && <p className="mt-3 text-sm text-[#5c675f] dark:text-gray-300">{todayVerse.reflection}</p>}
+              </div>
+            )}
+          </div>
+          </section>
+        )}
+
+        {adminData.sectionVisibility?.manna !== false && (
+          <section id="manna" className="relative scroll-mt-24 overflow-hidden px-5 py-16 sm:px-8 lg:py-24 bg-[#f7f2e8] dark:bg-[#121212]">
+            <DarkFluidBackground />
+            <div className="relative z-10 mx-auto max-w-4xl text-center">
+              <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[#9a6b31] dark:text-[#d8b14c]">✦ MANNA FOR YOUR SOUL ✦</p>
+              <h2 className="mt-3 font-serif text-4xl tracking-tight text-[#223328] dark:text-white sm:text-5xl">How are you feeling today?</h2>
+              <p className="mt-2 text-sm text-[#5c675f] dark:text-[#a1a1aa] max-w-md mx-auto">Select a category below to receive a customized scripture promise from God's Word</p>
+
+              {/* Group Toggle Selector */}
+              <div className="mt-8 flex flex-wrap justify-center gap-3">
+                <button
+                  onClick={() => {
+                    setActiveMoodGroup('comfort');
+                    setSelectedMood('');
+                    setMoodVerse(null);
+                  }}
+                  className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold border transition duration-300 shadow-md ${
+                    activeMoodGroup === 'comfort'
+                      ? 'bg-[#1c2920] border-[#d8b14c] text-[#d8b14c] dark:bg-[#d8b14c] dark:text-[#1a2a1e] dark:border-[#d8b14c]'
+                      : 'bg-white/40 border-black/10 text-black/60 hover:bg-white/60 dark:bg-white/5 dark:border-white/10 dark:text-white/60 dark:hover:bg-white/10'
+                  }`}
+                >
+                  <span className="text-base">😔</span> Downcast / Seeking Comfort
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveMoodGroup('wisdom');
+                    setSelectedMood('');
+                    setMoodVerse(null);
+                  }}
+                  className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold border transition duration-300 shadow-md ${
+                    activeMoodGroup === 'wisdom'
+                      ? 'bg-[#1c2920] border-[#d8b14c] text-[#d8b14c] dark:bg-[#d8b14c] dark:text-[#1a2a1e] dark:border-[#d8b14c]'
+                      : 'bg-white/40 border-black/10 text-black/60 hover:bg-white/60 dark:bg-white/5 dark:border-white/10 dark:text-white/60 dark:hover:bg-white/10'
+                  }`}
+                >
+                  <span className="text-base">😊</span> Hope / Seeking Guidance
+                </button>
+              </div>
+
+              {/* Grid of Emotions */}
+              {activeMoodGroup && (
+                <div className="mt-6 flex flex-wrap justify-center gap-2 max-w-3xl mx-auto animate-fade-in">
+                  {MOOD_CATEGORIES.filter(c => c.group === activeMoodGroup).map(c => {
+                    const isSelected = selectedMood === c.key;
+                    return (
+                      <button
+                        key={c.key}
+                        onClick={() => handleMoodChange(c.key)}
+                        className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-xs sm:text-sm font-semibold transition border shadow-sm backdrop-blur-md ${
+                          isSelected
+                            ? 'bg-[#d8b14c] border-[#d8b14c] text-[#1a2a1e] font-bold ring-2 ring-[#d8b14c]/30'
+                            : 'bg-white/50 border-black/5 text-[#223328] hover:border-black/20 dark:bg-white/5 dark:border-white/5 dark:text-white/80 dark:hover:bg-white/10 dark:hover:border-white/20'
+                        }`}
+                      >
+                        <span>{c.emoji}</span> {c.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Conditional Display of Verse */}
+              {moodVerse ? (
+                <div ref={verseRef} className="relative mx-auto mt-8 max-w-3xl rounded-[24px] border border-[#d8b14c]/30 bg-white/60 dark:bg-black/35 dark:border-white/10 p-6 shadow-[0_12px_40px_rgba(61,42,23,0.06)] backdrop-blur-xl transition-all duration-500 hover:shadow-[0_16px_50px_rgba(154,107,49,0.1)] sm:p-10 animate-fade-in">
+                  <blockquote className="relative z-10 mx-auto max-w-2xl font-serif text-lg leading-relaxed text-[#24342b] dark:text-[#e4e4e7] sm:text-2xl italic">
+                    "{moodVerse.verse}"
+                  </blockquote>
+
+                  <p className="relative z-10 mt-4 text-base font-bold tracking-wide text-[#9a6b31] dark:text-[#d8b14c] sm:text-lg">
+                    — {moodVerse.reference}
+                  </p>
+
+                  <div className="relative z-10 mx-auto mt-6 max-w-xl border-t border-[#d8ccb8] dark:border-[#333333]/60 pt-4">
+                    <p className="mb-2 text-xs font-bold uppercase tracking-widest text-[#5c675f] dark:text-[#a1a1aa] sm:text-sm">Reflection</p>
+                    <p className="text-xs leading-relaxed text-[#4f5c53] dark:text-gray-300 sm:text-sm">
+                      {moodVerse.reflection}
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={refreshMoodVerse}
+                    className="group relative mt-8 inline-flex items-center justify-center rounded-full bg-[#1c2920] px-6 py-3 text-xs font-bold uppercase tracking-widest text-white outline-none transition-all duration-300 hover:scale-105 hover:bg-[#2a3c2f] dark:bg-[#d8b14c] dark:text-[#1a2a1e] dark:hover:bg-[#f0ca60] focus:ring-4 focus:ring-[#d8b14c]/40 active:scale-95 shadow-lg animate-fade-in"
+                  >
+                    <span className="relative flex items-center gap-2">
+                      Give me another verse <span className="text-sm transition-transform duration-500 group-hover:rotate-180">↻</span>
+                    </span>
+                  </button>
+                </div>
+              ) : (
+                <div className="mt-10 py-12 text-center text-[#5c675f]/60 dark:text-white/35 italic flex flex-col items-center justify-center gap-2">
+                  <span className="text-4xl animate-bounce">📖</span>
+                  <p className="text-sm">Choose an emotion above to receive a scripture promise...</p>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+
+        {adminData.sectionVisibility?.contact !== false && (
+          <section id="contact" className="scroll-mt-24 px-5 py-16 sm:px-8 lg:py-24">
+
           <div className="mx-auto max-w-6xl">
             <div className="max-w-3xl">
               <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[#9a6b31] dark:text-[#d8b14c]">{t.connectWithUs}</p>
@@ -785,7 +1179,9 @@ export default function App() {
               </form>
             </div>
           </div>
-        </section>
+          </section>
+        )}
+
 
       </main>
 
@@ -846,6 +1242,9 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Notification Banners */}
+      <NotificationsContainer />
     </div>
   );
 }
