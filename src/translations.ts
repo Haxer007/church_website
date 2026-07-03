@@ -43,7 +43,7 @@ export const translations: Record<Language, Record<string, string>> = {
     prayerPlaceholder: "Share your prayer request...",
     sendWhatsapp: "Send via WhatsApp",
     footerName: "Zion AG Church, Madiwala",
-    footerServices: "Sunday morning services: 8:00 AM and 9:30 AM at Christ University College.",
+    footerServices: "Sunday morning services: Tamil/English 8:00 AM and Telugu/English 9:30 AM at Christ University College.",
 
     // New additions
     worshipMorning: "Worship with us this Sunday morning at Christ University College.",
