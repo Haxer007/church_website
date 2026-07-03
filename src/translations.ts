@@ -45,6 +45,7 @@ export const translations: Record<Language, Record<string, string>> = {
     footerName: "Zion AG Church, Madiwala",
     footerServices: "Sunday morning services: Tamil/English 8:00 AM and Telugu/English 9:30 AM at Christ University College.",
 
+
     // New additions
     worshipMorning: "Worship with us this Sunday morning at Christ University College.",
     christCentered: "A Christ-centered church family serving the Lord in the bustling hub of Madiwala, Bengaluru.",
