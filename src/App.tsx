@@ -753,7 +753,7 @@ export default function App() {
             <div className="max-w-4xl rounded-[2rem] border border-white/10 bg-black/30 p-6 shadow-2xl backdrop-blur-md sm:p-10 lg:p-12">
               <p className="mb-4 text-sm font-semibold uppercase tracking-[0.34em] text-[#f6d49b]">Madiwala, Bengaluru</p>
               <h1 className="font-serif text-5xl leading-[0.95] tracking-tight text-white sm:text-7xl lg:text-8xl">
-                Zion AG Church, Madiwala
+                Zion AG Church
               </h1>
               <p className="mt-5 max-w-xl text-base leading-7 text-white/82 sm:text-lg">
                 {t.christCentered}
