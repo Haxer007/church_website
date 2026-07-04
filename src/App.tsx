@@ -178,11 +178,11 @@ const defaultDailyMannaVerses = [
   }
 ];
 const defaultAnnouncementPosters = [
-  { src: './images/poster_prayer.png', alt: 'Prayer Night', label: '🙏 Prayer Night' },
-  { src: './images/poster_youth.png', alt: 'Youth Meeting', label: '⚡ Youth Alive' },
-  { src: './images/poster_women.png', alt: 'Women Fellowship', label: '🌸 Women of Faith' },
-  { src: './images/poster_revival.png', alt: 'Revival Meeting', label: '🔥 Revival Fire' },
-  { src: './images/poster_christmas.png', alt: 'Christmas Celebration', label: '🎄 Christmas' },
+  { src: './images/poster_prayer.webp', alt: 'Prayer Night', label: '🙏 Prayer Night' },
+  { src: './images/poster_youth.webp', alt: 'Youth Meeting', label: '⚡ Youth Alive' },
+  { src: './images/poster_women.webp', alt: 'Women Fellowship', label: '🌸 Women of Faith' },
+  { src: './images/poster_revival.webp', alt: 'Revival Meeting', label: '🔥 Revival Fire' },
+  { src: './images/poster_christmas.webp', alt: 'Christmas Celebration', label: '🎄 Christmas' },
 ];
 
 
@@ -581,7 +581,7 @@ export default function App() {
       <header className="animate-header fixed inset-x-0 top-0 z-50 border-b border-white/25 bg-[#f7f2e8]/60 dark:bg-[#121212]/60 backdrop-blur-xl">
         <nav className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8" aria-label="Main navigation">
           <a href="#home" onClick={closeMenu} className="flex items-center gap-3 font-serif text-lg tracking-tight text-[#223328] dark:text-white sm:text-xl">
-            <img src="./images/church_logo.png" alt="Zion AG Logo" className="h-8 w-auto drop-shadow-sm" />
+            <img src="./images/church_logo.webp" alt="Zion AG Logo" className="h-8 w-auto drop-shadow-sm" />
             ZION AG CHURCH
           </a>
 
@@ -745,7 +745,7 @@ export default function App() {
           <div
             aria-hidden="true"
             className="hero-photo-motion absolute inset-0 bg-cover bg-top origin-top"
-            style={{ backgroundImage: "url('./images/church-hero.jpg')" }}
+            style={{ backgroundImage: "url('./images/church-hero.webp')" }}
           />
           <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-[#17251d]/92 via-[#17251d]/45 to-[#17251d]/10" />
 
@@ -919,7 +919,7 @@ export default function App() {
                 <div className="mx-auto mt-10 max-w-2xl border-t border-[#d8ccb8] dark:border-[#333333]/50 pt-10 text-center">
                   <div className="mx-auto mb-6 flex h-40 w-40 sm:h-52 sm:w-52 items-center justify-center overflow-hidden rounded-full border-4 border-white shadow-xl ring-2 ring-[#e1d4be]">
                     <img
-                      src="./images/pastor.png"
+                      src="./images/pastor.webp"
                       alt="{t.pastorName}"
                       className="h-full w-full object-cover"
                     />
@@ -1395,7 +1395,7 @@ export default function App() {
       {showLangModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-xl">
           <div className="w-full max-w-sm rounded-[32px] bg-[#f7f2e8] dark:bg-[#121212] p-8 text-center shadow-2xl">
-            <img src="./images/church_logo.png" alt="Zion AG Logo" className="mx-auto mb-4 h-24 w-auto drop-shadow-md" />
+            <img src="./images/church_logo.webp" alt="Zion AG Logo" className="mx-auto mb-4 h-24 w-auto drop-shadow-md" />
             <h2 className="mb-6 font-serif text-2xl font-bold text-[#223328] dark:text-white">{t.welcomesYou || "Welcomes You"}</h2>
             <div className="flex flex-col gap-3">
               <button onClick={() => handleLangChange('en')} className="rounded-full bg-white dark:bg-[#1e1e1e] px-5 py-3 font-semibold text-[#24342b] dark:text-[#e4e4e7] shadow hover:bg-[#d8b14c] hover:text-white transition">English</button>
