@@ -202,6 +202,7 @@ function NotificationsTab() {
   const [items, setItems] = useState<NotificationBanner[]>(() => getNotifications());
   const [msg,  setMsg]  = useState('');
   const [type, setType] = useState<'static' | 'fading'>('fading');
+  const [frequency, setFrequency] = useState<'once' | 'every-visit'>('once');
   const [imgSrc, setImgSrc] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -237,7 +238,7 @@ function NotificationsTab() {
 
   function add() {
     if (!msg.trim()) return;
-    persist([{ id: uid(), type, message: msg, image: imgSrc, active: true, createdAt: Date.now() }, ...items]);
+    persist([{ id: uid(), type, frequency, message: msg, image: imgSrc, active: true, createdAt: Date.now() }, ...items]);
     setMsg(''); setImgSrc(null);
     if (fileRef.current) fileRef.current.value = '';
   }
@@ -270,6 +271,23 @@ function NotificationsTab() {
         <p className="text-white/40 text-xs">
           {type === 'fading' ? 'Shows for 3s then fades. Click to pin; click outside or × to close.' : 'Stays until user clicks anywhere.'}
         </p>
+        {/* Frequency toggle */}
+        <div className="space-y-2">
+          <p className="text-white/60 text-xs font-semibold uppercase tracking-wide">Show frequency</p>
+          <div className="flex gap-3">
+            {(['once', 'every-visit'] as const).map(f => (
+              <button key={f} onClick={() => setFrequency(f)}
+                className={`flex-1 rounded-xl py-2 text-sm font-semibold border transition ${frequency === f ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-white/5 text-white/60 border-white/10 hover:border-white/30'}`}>
+                {f === 'once' ? '🔂 Show Once' : '🔁 Every Visit'}
+              </button>
+            ))}
+          </div>
+          <p className="text-white/40 text-xs">
+            {frequency === 'once'
+              ? 'Shown once — disappears permanently after the visitor dismisses it.'
+              : 'Shown on every page load — dismissed banners reappear when the visitor opens a new tab/window.'}
+          </p>
+        </div>
         <div>
           <label className="text-white/60 text-sm block mb-1">Banner Image (optional) - Ctrl+V to paste from clipboard</label>
           <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} className="text-white/70 text-sm" />
@@ -288,6 +306,13 @@ function NotificationsTab() {
           <div key={n.id} className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
             <div className="flex items-start gap-2">
               <span className="text-xs bg-white/10 text-white/60 rounded-full px-2 py-0.5 shrink-0">{n.type}</span>
+              <span className={`text-xs rounded-full px-2 py-0.5 shrink-0 ${
+                (n.frequency ?? 'once') === 'every-visit'
+                  ? 'bg-indigo-600/30 text-indigo-300'
+                  : 'bg-white/10 text-white/50'
+              }`}>
+                {(n.frequency ?? 'once') === 'every-visit' ? '🔁 every visit' : '🔂 once'}
+              </span>
               <p className="text-white text-sm flex-1">{n.message}</p>
               {n.image && <img src={n.image} className="h-10 w-14 rounded-lg object-cover shrink-0" alt="" />}
             </div>

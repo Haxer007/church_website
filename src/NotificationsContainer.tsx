@@ -1,11 +1,17 @@
 import { useState, useEffect, useRef } from "react";
-import { getNotifications, markNotificationSeen, getSeenNotificationIds, NotificationBanner } from "./adminStore";
+import { getNotifications, markNotificationSeen, getSeenNotificationIds, getSessionDismissedIds, NotificationBanner } from "./adminStore";
 
 // ─── Load active unseen notifications ─────────────────────────────────────────
 function loadQueue(): NotificationBanner[] {
   const active = getNotifications().filter(n => n.active);
-  const seen   = getSeenNotificationIds();
-  return active.filter(n => !seen.includes(n.id));
+  const seenOnce    = getSeenNotificationIds();    // persistent — for 'once'
+  const seenSession = getSessionDismissedIds();    // session-only — for 'every-visit'
+  return active.filter(n => {
+    if ((n.frequency ?? 'once') === 'every-visit') {
+      return !seenSession.includes(n.id);          // hide only if dismissed THIS session
+    }
+    return !seenOnce.includes(n.id);               // hide permanently after first dismiss
+  });
 }
 
 // ─── Single Fading Banner ─────────────────────────────────────────────────────
@@ -126,8 +132,9 @@ export default function NotificationsContainer() {
   }, []);
 
   function dismiss(id: string) {
-    markNotificationSeen(id);
-    setQueue(q => q.filter(n => n.id !== id));
+    const n = queue.find(x => x.id === id);
+    markNotificationSeen(id, n?.frequency ?? 'once');
+    setQueue(q => q.filter(x => x.id !== id));
   }
 
   if (queue.length === 0) return null;

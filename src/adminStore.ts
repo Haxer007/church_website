@@ -14,6 +14,7 @@ export interface Announcement {
 export interface NotificationBanner {
   id: string;
   type: 'static' | 'fading';
+  frequency: 'once' | 'every-visit'; // 'once' = never show again after dismiss; 'every-visit' = show on each page load
   message: string;
   image?: string | null;  // optional base64/URL image
   active: boolean;
@@ -134,10 +135,30 @@ export function saveNotifications(list: NotificationBanner[]) {
 export function getSeenNotificationIds(): string[] {
   return ensureArray<string>(load(KEYS.SEEN_NOTIFICATIONS, []));
 }
-export function markNotificationSeen(id: string) {
-  const seen = getSeenNotificationIds();
-  if (!seen.includes(id)) {
-    save(KEYS.SEEN_NOTIFICATIONS, [...seen, id]);
+
+/** IDs dismissed this session only (for 'every-visit' notifications) */
+const SESSION_DISMISSED_KEY = 'session_dismissed_notifications';
+export function getSessionDismissedIds(): string[] {
+  try {
+    const raw = sessionStorage.getItem(SESSION_DISMISSED_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+export function markSessionDismissed(id: string) {
+  const ids = getSessionDismissedIds();
+  if (!ids.includes(id)) {
+    sessionStorage.setItem(SESSION_DISMISSED_KEY, JSON.stringify([...ids, id]));
+  }
+}
+
+export function markNotificationSeen(id: string, frequency: 'once' | 'every-visit' = 'once') {
+  if (frequency === 'every-visit') {
+    markSessionDismissed(id);
+  } else {
+    const seen = getSeenNotificationIds();
+    if (!seen.includes(id)) {
+      save(KEYS.SEEN_NOTIFICATIONS, [...seen, id]);
+    }
   }
 }
 
