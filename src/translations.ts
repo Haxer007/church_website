@@ -48,7 +48,7 @@ export const translations: Record<Language, Record<string, string>> = {
 
     // New additions
     worshipMorning: "Worship with us this Sunday morning at Christ University College.",
-    christCentered: "A Christ-centered church family serving the Lord in the bustling hub of Madiwala, Bengaluru.",
+    christCentered: "Welcome to Zion Assembly of God church! We are a Community of real people discovering what it means to follow Jesus. Whether you're a longtime believer or just exploring faith, you are welcome here just as you are. Take a look at our website and plan for your first visit to any of our gatherings.",
     getDirections: "Get Directions",
     openMaps: "Open Maps",
     mainChurch: "Main Church",
