@@ -41,6 +41,12 @@ export interface TranslationOverrides {
   [lang: string]: Record<string, string>;
 }
 
+export interface MapLinks {
+  sundayVenue: string;
+  mainChurch: string;
+  hosaRoadBranch: string;
+}
+
 export interface SectionVisibility {
   about: boolean;
   announcements: boolean;
@@ -62,6 +68,9 @@ const KEYS = {
   SEEN_NOTIFICATIONS: 'seen_notification_ids',
   ANNOUNCEMENT_MODE: 'admin_announcement_mode',
   SECTION_VISIBILITY: 'admin_section_visibility',
+  MAP_LINKS: 'admin_map_links',
+  ANNOUNCEMENT_ASPECT_RATIO: 'admin_announcement_aspect_ratio',
+  HERO_BACKGROUND_IMAGE: 'admin_hero_background_image',
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -76,6 +85,9 @@ const FB_PATH: Record<string, string> = {
   [KEYS.TRANSLATION_OVERRIDES]: 'translationOverrides',
   [KEYS.ANNOUNCEMENT_MODE]: 'announcementMode',
   [KEYS.SECTION_VISIBILITY]: 'sectionVisibility',
+  [KEYS.MAP_LINKS]: 'mapLinks',
+  [KEYS.ANNOUNCEMENT_ASPECT_RATIO]: 'announcementAspectRatio',
+  [KEYS.HERO_BACKGROUND_IMAGE]: 'heroBackgroundImage',
 };
 
 export const LAST_UPDATED_LOCAL_KEY = 'admin_last_updated';
@@ -241,5 +253,38 @@ export function getSectionVisibility(): SectionVisibility {
 
 export function saveSectionVisibility(visibility: SectionVisibility) {
   save(KEYS.SECTION_VISIBILITY, visibility);
+}
+
+// ─── Map Links ────────────────────────────────────────────────────────────────
+export const DEFAULT_MAP_LINKS: MapLinks = {
+  sundayVenue: "https://maps.app.goo.gl/QuRYUhwUz341j8hTA",
+  mainChurch: "https://www.google.com/maps/search/?api=1&query=22%20Maruthi%20Nagar%20Main%20Rd%20beside%20Amravati%20Hotel%20Zuzuvadi%20BTM%20Layout%20Bengaluru%20560068",
+  hosaRoadBranch: "https://maps.app.goo.gl/VG5doU4NchkBvb3Q6",
+};
+
+export function getMapLinks(): MapLinks {
+  return { ...DEFAULT_MAP_LINKS, ...load<Partial<MapLinks>>(KEYS.MAP_LINKS, {}) };
+}
+
+export function saveMapLinks(links: MapLinks) {
+  save(KEYS.MAP_LINKS, links);
+}
+
+// ─── Announcement Aspect Ratio ──────────────────────────────────────────────────
+export type AspectRatio = '16:9' | '4:3' | '9:16';
+
+export function getAnnouncementAspectRatio(): AspectRatio {
+  return load<AspectRatio>(KEYS.ANNOUNCEMENT_ASPECT_RATIO, '16:9');
+}
+export function saveAnnouncementAspectRatio(ratio: AspectRatio) {
+  save(KEYS.ANNOUNCEMENT_ASPECT_RATIO, ratio);
+}
+
+// ─── Hero Background Image ──────────────────────────────────────────────────────
+export function getHeroBackgroundImage(): string | null {
+  return load<string | null>(KEYS.HERO_BACKGROUND_IMAGE, null);
+}
+export function saveHeroBackgroundImage(image: string | null) {
+  save(KEYS.HERO_BACKGROUND_IMAGE, image);
 }
 

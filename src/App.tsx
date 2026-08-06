@@ -4,8 +4,8 @@ import { AddToCalendarButton } from 'add-to-calendar-button-react';
 import NotificationsContainer from "./NotificationsContainer";
 import {
   getAnnouncements, getNotifications, getMannaVerses, getVerseDays, getTranslationOverrides,
-  getAnnouncementMode, getSectionVisibility, ensureArray,
-  Announcement, NotificationBanner, MannaVerse, VerseDayEntry, TranslationOverrides, AnnouncementMode, SectionVisibility,
+  getAnnouncementMode, getSectionVisibility, getAnnouncementAspectRatio, getHeroBackgroundImage, ensureArray,
+  Announcement, NotificationBanner, MannaVerse, VerseDayEntry, TranslationOverrides, AnnouncementMode, SectionVisibility, AspectRatio,
   LAST_UPDATED_LOCAL_KEY,
 } from "./adminStore";
 import { fetchAllChurchData, subscribeToFirebase } from "./firebaseDb";
@@ -178,11 +178,12 @@ const defaultDailyMannaVerses = [
   }
 ];
 const defaultAnnouncementPosters = [
-  { src: './images/poster_prayer.webp', alt: 'Prayer Night', label: '🙏 Prayer Night' },
-  { src: './images/poster_youth.webp', alt: 'Youth Meeting', label: '⚡ Youth Alive' },
-  { src: './images/poster_women.webp', alt: 'Women Fellowship', label: '🌸 Women of Faith' },
-  { src: './images/poster_revival.webp', alt: 'Revival Meeting', label: '🔥 Revival Fire' },
-  { src: './images/poster_christmas.webp', alt: 'Christmas Celebration', label: '🎄 Christmas' },
+  { src: './announcement_images/carecells.jpeg', alt: 'Care Cells', label: '👥 Care Cells' },
+  { src: './announcement_images/fasting_prayer.jpeg', alt: 'Fasting & Prayer', label: '🙏 Fasting & Prayer' },
+  { src: './announcement_images/girls_fellowship.jpeg', alt: 'Girls Fellowship', label: '🌸 Girls Fellowship' },
+  { src: './announcement_images/half_night_prayer.jpeg', alt: 'Half Night Prayer', label: '🔥 Half Night Prayer' },
+  { src: './announcement_images/kids_bible_club.jpeg', alt: 'Kids Bible Club', label: '👶 Kids Bible Club' },
+  { src: './announcement_images/yout_meeting.jpeg', alt: 'Youth Meeting', label: '⚡ Youth Meeting' },
 ];
 
 
@@ -255,6 +256,8 @@ export default function App() {
       verseDays: getVerseDays() as VerseDayEntry[],
       announcementMode: getAnnouncementMode() as AnnouncementMode,
       sectionVisibility: getSectionVisibility() as SectionVisibility,
+      announcementAspectRatio: getAnnouncementAspectRatio() as AspectRatio,
+      heroBackgroundImage: getHeroBackgroundImage() as string | null,
     };
   }
 
@@ -271,6 +274,9 @@ export default function App() {
       translationOverrides: raw.translationOverrides !== undefined && typeof raw.translationOverrides === 'object' ? raw.translationOverrides as TranslationOverrides : prev.translationOverrides,
       verseDays: raw.verseDays !== undefined ? ensureArray<VerseDayEntry>(raw.verseDays) : prev.verseDays,
       sectionVisibility: raw.sectionVisibility !== undefined && typeof raw.sectionVisibility === 'object' ? raw.sectionVisibility as SectionVisibility : prev.sectionVisibility,
+      announcementMode: raw.announcementMode !== undefined ? raw.announcementMode as AnnouncementMode : prev.announcementMode,
+      announcementAspectRatio: raw.announcementAspectRatio !== undefined ? raw.announcementAspectRatio as AspectRatio : prev.announcementAspectRatio,
+      heroBackgroundImage: raw.heroBackgroundImage !== undefined ? raw.heroBackgroundImage as string | null : prev.heroBackgroundImage,
     }));
     // Also update localStorage cache so admin panel shows latest data
     if (raw.announcements) localStorage.setItem('admin_announcements', JSON.stringify(raw.announcements));
@@ -279,6 +285,9 @@ export default function App() {
     if (raw.translationOverrides) localStorage.setItem('admin_translation_overrides', JSON.stringify(raw.translationOverrides));
     if (raw.verseDays) localStorage.setItem('admin_verse_of_day', JSON.stringify(raw.verseDays));
     if (raw.sectionVisibility) localStorage.setItem('admin_section_visibility', JSON.stringify(raw.sectionVisibility));
+    if (raw.announcementMode) localStorage.setItem('admin_announcement_mode', JSON.stringify(raw.announcementMode));
+    if (raw.announcementAspectRatio) localStorage.setItem('admin_announcement_aspect_ratio', JSON.stringify(raw.announcementAspectRatio));
+    if (raw.heroBackgroundImage !== undefined) localStorage.setItem('admin_hero_background_image', JSON.stringify(raw.heroBackgroundImage));
 
     // Dispatch event so same-tab listeners like NotificationsContainer refresh immediately
     window.dispatchEvent(new CustomEvent('adminDataChanged'));
@@ -287,6 +296,7 @@ export default function App() {
   const ADMIN_LS_KEYS = [
     'admin_announcements', 'admin_notifications', 'admin_manna_verses',
     'admin_verse_of_day', 'admin_translation_overrides', 'admin_section_visibility',
+    'admin_announcement_mode', 'admin_announcement_aspect_ratio', 'admin_hero_background_image',
   ];
 
 
@@ -327,6 +337,7 @@ export default function App() {
   // Always merge: default posters first, then admin-added announcements on top
   const adminPosters = adminData.announcements.map(a => ({ src: a.src ?? '', alt: a.alt, label: a.label }));
   // 'replace' mode: only show admin announcements (when any exist); 'merge': show defaults + admin together
+  console.log(adminData.announcementMode, adminPosters.length)
   const announcementPosters = (adminData.announcementMode === 'replace' && adminPosters.length > 0)
     ? adminPosters
     : [...defaultAnnouncementPosters, ...adminPosters];
@@ -389,7 +400,7 @@ export default function App() {
           behavior: 'smooth',
           block: 'nearest',
         });
-      }, 120);
+      }, 520);
       return () => clearTimeout(timer);
     }
   }, [selectedService]);
@@ -419,6 +430,7 @@ export default function App() {
   };
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isOfferingOpen, setIsOfferingOpen] = useState(false);
   const [prayerRequest, setPrayerRequest] = useState("");
   const [mannaIndex, setMannaIndex] = useState(0);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -651,6 +663,12 @@ export default function App() {
                 {item.label}
               </a>
             ))}
+            <button
+              onClick={() => setIsOfferingOpen(true)}
+              className="rounded-full bg-[#d8b14c] px-4 py-1.5 text-sm font-bold text-[#1a2a1e] hover:bg-[#f0ca60] transition"
+            >
+              💝 Offer
+            </button>
           </div>
         </nav>
 
@@ -734,18 +752,104 @@ export default function App() {
                     {item.label}
                   </a>
                 ))}
+                {/* Offering button */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); setIsOfferingOpen(true); }}
+                  className="rounded-xl px-3 py-3 text-base font-semibold text-left text-[#8a5f2b] dark:text-[#d8b14c] transition hover:bg-[#f6d49b]/40 dark:hover:bg-[#d8b14c]/10 flex items-center gap-2"
+                >Offering
+                </button>
               </div>
             </div>
           </>
         )}
       </header>
 
+      {/* ─── Offering Modal ────────────────────────────────────────────── */}
+      {isOfferingOpen && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center px-4"
+          onClick={() => setIsOfferingOpen(false)}
+        >
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+
+          {/* Modal card */}
+          <div
+            className="relative z-10 w-full max-w-sm rounded-3xl border border-white/10 bg-[#fffdf9] dark:bg-[#1a2a1e] shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="bg-gradient-to-r from-[#223328] to-[#2e4d37] px-6 pt-7 pb-5 text-center relative">
+              <button
+                onClick={() => setIsOfferingOpen(false)}
+                className="absolute top-4 right-4 text-white/50 hover:text-white transition text-xl"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+              <div className="text-4xl mb-2">💝</div>
+              <h2 className="font-serif text-2xl font-bold text-white">Give an Offering</h2>
+              <p className="text-white/60 text-sm mt-1">Every seed sown is a step of faith</p>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-6 space-y-5">
+              {/* Scripture verse */}
+              <div className="rounded-2xl bg-gradient-to-br from-[#f6d49b]/40 to-[#d8b14c]/10 dark:from-[#d8b14c]/10 dark:to-[#223328]/40 border border-[#d8b14c]/30 px-4 py-4 text-center space-y-1.5">
+                <p className="text-[#3f2c18] dark:text-[#f6d49b] text-sm leading-relaxed italic font-medium">
+                  "Each of you should give what you have decided in your heart to give, not reluctantly or under compulsion,{" "}
+                  <span className="font-bold not-italic">for God loves a cheerful giver.</span>"
+                </p>
+                <p className="text-[#8a5f2b] dark:text-[#d8b14c] text-xs font-bold tracking-wide">— 2 Corinthians 9:7</p>
+              </div>
+
+              {/* QR Code */}
+              <div className="flex flex-col items-center gap-3">
+                <div className="rounded-2xl border-4 border-[#d8b14c] p-2 bg-white shadow-lg">
+                  <img
+                    src="./images/upi_qr.png"
+                    alt="UPI QR Code – scan to give your offering"
+                    className="w-48 h-48 object-contain"
+                  />
+                </div>
+                <p className="text-[#223328] dark:text-white/80 text-sm font-semibold text-center">
+                  Scan with any UPI app to give
+                </p>
+                <p className="text-[#8a5f2b] dark:text-[#d8b14c] text-xs font-mono bg-[#f6d49b]/30 dark:bg-[#d8b14c]/10 px-3 py-1.5 rounded-lg border border-[#d8b14c]/30">
+                  12295643032922@cnrb
+                </p>
+              </div>
+
+              {/* Divider */}
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-[#dfd2bd] dark:bg-white/10" />
+                <span className="text-xs text-[#8a5f2b]/60 dark:text-white/30 font-semibold uppercase tracking-widest">or</span>
+                <div className="flex-1 h-px bg-[#dfd2bd] dark:bg-white/10" />
+              </div>
+
+              {/* UPI deep-link button */}
+              <a
+                href="upi://pay?pa=12295643032922@cnrb&pn=Zion%20AG%20Church&cu=INR"
+                className="flex items-center justify-center gap-2.5 w-full rounded-2xl bg-gradient-to-r from-[#223328] to-[#2e4d37] text-white font-bold py-4 text-base shadow-lg hover:from-[#2e4d37] hover:to-[#3a5e45] transition-all active:scale-[0.98]"
+              >
+                <span className="text-xl">🌱</span>
+                Seed / Give via UPI App
+              </a>
+
+              <p className="text-center text-xs text-[#8a5f2b]/50 dark:text-white/30">
+                Opens PhonePe, Google Pay, Paytm &amp; other UPI apps
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <main>
         <section id="home" className="relative flex min-h-screen items-end overflow-hidden px-5 pb-16 pt-28 sm:px-8 lg:pb-24">
           <div
             aria-hidden="true"
             className="hero-photo-motion absolute inset-0 bg-cover bg-top origin-top"
-            style={{ backgroundImage: "url('./images/church-hero.webp')" }}
+            style={{ backgroundImage: `url(${adminData.heroBackgroundImage || './images/church-hero.webp'})` }}
           />
           <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-[#17251d]/92 via-[#17251d]/45 to-[#17251d]/10" />
 
@@ -960,35 +1064,43 @@ export default function App() {
                 className={`flex gap-6 overflow-x-auto pb-12 pt-8 px-5 sm:px-8 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${isDragging ? "cursor-grabbing select-none" : "cursor-grab"
                   } ${isDragging ? "" : "snap-x snap-mandatory scroll-smooth"}`}
               >
-                {extendedPosters.map((poster, index) => (
-                  <div
-                    key={index}
-                    className={`snap-center shrink-0 w-[280px] sm:w-[320px] aspect-[4/5] rounded-[24px] overflow-hidden border border-white/40 cursor-pointer transition-all duration-500 group relative ${activeIndex === index
-                      ? "scale-[1.15] shadow-[0_30px_60px_rgba(154,107,49,0.3)] z-10 border-white/80"
-                      : "scale-[0.92] opacity-60 shadow-[0_12px_40px_rgba(61,42,23,0.08)] hover:opacity-100 z-0"
-                      }`}
-                    onClick={(e) => {
-                      if (dragDistance.current > 10) {
-                        e.preventDefault();
-                        return;
-                      }
-                      setSelectedImage(poster.src);
-                    }}
-                  >
-                    <img
-                      src={poster.src}
-                      alt={poster.alt}
-                      loading="lazy"
-                      onDragStart={(e) => e.preventDefault()}
-                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                    />
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-6 pt-16 text-left">
-                      <span className="text-white font-medium text-lg drop-shadow-md">
-                        {poster.label}
-                      </span>
+                {extendedPosters.map((poster, index) => {
+                  let ratioClass = 'w-[320px] sm:w-[480px] aspect-[16/9]';
+                  if (adminData.announcementAspectRatio === '4:3') {
+                    ratioClass = 'w-[290px] sm:w-[400px] aspect-[4/3]';
+                  } else if (adminData.announcementAspectRatio === '9:16') {
+                    ratioClass = 'w-[200px] sm:w-[280px] aspect-[9/16]';
+                  }
+                  return (
+                    <div
+                      key={index}
+                      className={`snap-center shrink-0 ${ratioClass} rounded-[24px] overflow-hidden border border-white/40 cursor-pointer transition-all duration-500 group relative ${activeIndex === index
+                        ? "scale-[1.15] shadow-[0_30px_60px_rgba(154,107,49,0.3)] z-10 border-white/80"
+                        : "scale-[0.92] opacity-60 shadow-[0_12px_40px_rgba(61,42,23,0.08)] hover:opacity-100 z-0"
+                        }`}
+                      onClick={(e) => {
+                        if (dragDistance.current > 10) {
+                          e.preventDefault();
+                          return;
+                        }
+                        setSelectedImage(poster.src);
+                      }}
+                    >
+                      <img
+                        src={poster.src}
+                        alt={poster.alt}
+                        loading="lazy"
+                        onDragStart={(e) => e.preventDefault()}
+                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-6 pt-16 text-left">
+                        <span className="text-white font-medium text-lg drop-shadow-md">
+                          {poster.label}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               <div className="flex justify-center gap-2 mt-8 hidden sm:flex">
                 {announcementPosters.map((_, i) => (
@@ -1100,12 +1212,14 @@ export default function App() {
                   {dailyMannaVerses[mannaIndex].reference}
                 </p>
 
-                <div className="relative z-10 mx-auto mt-8 max-w-xl border-t border-[#d8ccb8] dark:border-[#333333]/60 pt-6">
-                  <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-[#5c675f] dark:text-[#a1a1aa] sm:text-base">{t.reflection}</p>
-                  <p className="text-[15px] leading-relaxed text-[#4f5c53] dark:text-gray-200 sm:text-[17px]">
-                    {dailyMannaVerses[mannaIndex].reflection}
-                  </p>
-                </div>
+                {dailyMannaVerses[mannaIndex].reflection?.trim() && (
+                  <div className="relative z-10 mx-auto mt-8 max-w-xl border-t border-[#d8ccb8] dark:border-[#333333]/60 pt-6">
+                    <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-[#5c675f] dark:text-[#a1a1aa] sm:text-base">{t.reflection}</p>
+                    <p className="text-[15px] leading-relaxed text-[#4f5c53] dark:text-gray-200 sm:text-[17px]">
+                      {dailyMannaVerses[mannaIndex].reflection}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Neon Glowing Button */}

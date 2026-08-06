@@ -99,6 +99,10 @@ export interface ChurchData {
   mannaVerses: unknown[] | null;
   verseDays: unknown[] | null;
   translationOverrides: Record<string, unknown> | null;
+  announcementMode?: string | null;
+  announcementAspectRatio?: string | null;
+  heroBackgroundImage?: string | null;
+  sectionVisibility?: Record<string, unknown> | null;
 }
 
 export async function fetchAllChurchData(): Promise<ChurchData | null> {

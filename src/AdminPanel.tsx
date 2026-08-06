@@ -7,11 +7,13 @@ import {
   getTranslationOverrides, saveTranslationOverrides,
   getAnnouncementMode, saveAnnouncementMode,
   getSectionVisibility, saveSectionVisibility,
-  Announcement, NotificationBanner, MannaVerse, VerseDayEntry, AnnouncementMode, SectionVisibility,
+  getMapLinks, saveMapLinks,
+  getAnnouncementAspectRatio, saveAnnouncementAspectRatio,
+  Announcement, NotificationBanner, MannaVerse, VerseDayEntry, AnnouncementMode, SectionVisibility, MapLinks, AspectRatio,
 } from "./adminStore";
 
 import { translations, Language } from "./translations";
-import { fetchVerse, fetchVerseMultiLang, BIBLE_TRANSLATIONS } from "./bibleApi";
+import { fetchVerse, fetchVerseMultiLang } from "./bibleApi";
 import { generateVerseImage, GRADIENT_PRESETS } from "./canvasVerseImage";
 
 
@@ -20,17 +22,85 @@ const LANG_LABELS: Record<Language, string> = { en: 'English', ta: 'Tamil', kn: 
 
 function uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
 
-function toBase64(file: File): Promise<string> {
-  return new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload = () => res(r.result as string);
-    r.onerror = rej;
-    r.readAsDataURL(file);
+function dataURLtoBlob(dataurl: string): Blob {
+  const arr = dataurl.split(',');
+  const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/png';
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new Blob([u8arr], { type: mime });
+}
+
+function convertToWebp(fileOrBlob: File | Blob): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(fileOrBlob);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Canvas context not available'));
+        return;
+      }
+      ctx.drawImage(img, 0, 0);
+      canvas.toBlob((blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error('WebP conversion failed'));
+      }, 'image/webp', 0.95);
+    };
+    img.onerror = (e) => {
+      URL.revokeObjectURL(url);
+      reject(e);
+    };
+    img.src = url;
   });
 }
 
+async function uploadToImgBB(fileOrBase64: File | string): Promise<string> {
+  let blob: Blob;
+  if (typeof fileOrBase64 === 'string') {
+    blob = dataURLtoBlob(fileOrBase64);
+  } else {
+    blob = fileOrBase64;
+  }
+
+  if (blob.type !== 'image/webp') {
+    try {
+      blob = await convertToWebp(blob);
+    } catch (e) {
+      console.warn('Failed to convert to WebP, uploading as is', e);
+    }
+  }
+
+  const apiKey = '0561957c73aee8e8d593ddcba7ab7a47';
+  const formData = new FormData();
+  const filename = blob.type === 'image/webp' ? 'image.webp' : 'image.png';
+  formData.append('image', blob, filename);
+
+  const res = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!res.ok) {
+    throw new Error(`Upload failed: ${res.statusText}`);
+  }
+
+  const json = await res.json();
+  if (json && json.data && json.data.url) {
+    return json.data.url;
+  }
+  throw new Error('Upload output missing URL');
+}
+
 // ─── Tab types ────────────────────────────────────────────────────────────────
-type Tab = 'announcements' | 'notifications' | 'verses' | 'verseofday' | 'translations' | 'sections';
+type Tab = 'announcements' | 'notifications' | 'verses' | 'verseofday' | 'translations' | 'sections' | 'maplinks';
 
 
 // ─── Login Screen ─────────────────────────────────────────────────────────────
@@ -86,11 +156,14 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 function AnnouncementsTab() {
   const [items, setItems] = useState<Announcement[]>(() => getAnnouncements());
   const [mode, setMode] = useState<AnnouncementMode>(() => getAnnouncementMode());
+  const [aspectRatio, setAspectRatio] = useState<AspectRatio>(() => getAnnouncementAspectRatio());
   const [label, setLabel] = useState('');
   const [alt, setAlt] = useState('');
   const [imgSrc, setImgSrc] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [err, setErr] = useState('');
 
   useEffect(() => {
     function handlePaste(e: ClipboardEvent) {
@@ -100,9 +173,12 @@ function AnnouncementsTab() {
         if (items[i].type.indexOf('image') !== -1) {
           const file = items[i].getAsFile();
           if (file) {
-            toBase64(file).then(base64 => {
-              setImgSrc(base64);
-            });
+            setUploading(true);
+            setErr('');
+            uploadToImgBB(file)
+              .then(url => setImgSrc(url))
+              .catch(e => setErr(e.message || 'Upload failed'))
+              .finally(() => setUploading(false));
             e.preventDefault();
             break;
           }
@@ -116,10 +192,22 @@ function AnnouncementsTab() {
 
   function persist(next: Announcement[]) { setItems(next); saveAnnouncements(next); }
   function changeMode(m: AnnouncementMode) { setMode(m); saveAnnouncementMode(m); }
+  function changeAspectRatio(r: AspectRatio) { setAspectRatio(r); saveAnnouncementAspectRatio(r); }
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
-    if (f) setImgSrc(await toBase64(f));
+    if (f) {
+      setUploading(true);
+      setErr('');
+      try {
+        const url = await uploadToImgBB(f);
+        setImgSrc(url);
+      } catch (err: any) {
+        setErr(err.message || 'Upload failed');
+      } finally {
+        setUploading(false);
+      }
+    }
   }
 
   function addItem() {
@@ -146,24 +234,42 @@ function AnnouncementsTab() {
     <div className="space-y-6">
       <h2 className="text-xl font-bold text-white">📢 Announcements</h2>
 
-      {/* Display mode toggle */}
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3">
-        <h3 className="text-[#d8b14c] font-semibold text-sm">📦 Display Mode</h3>
-        <div className="flex gap-3">
-          {(['merge', 'replace'] as AnnouncementMode[]).map(m => (
-            <button key={m} onClick={() => changeMode(m)}
-              className={`flex-1 rounded-xl py-2.5 text-sm font-semibold border transition ${
-                mode === m ? 'bg-[#d8b14c] text-[#1a2a1e] border-[#d8b14c]' : 'bg-white/5 text-white/60 border-white/10 hover:border-white/30'
-              }`}>
-              {m === 'merge' ? '➕ Add Alongside Existing' : '🔄 Replace Existing'}
-            </button>
-          ))}
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Display mode toggle */}
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3">
+          <h3 className="text-[#d8b14c] font-semibold text-sm">📦 Display Mode</h3>
+          <div className="flex gap-3">
+            {(['merge', 'replace'] as AnnouncementMode[]).map(m => (
+              <button key={m} onClick={() => changeMode(m)}
+                className={`flex-1 rounded-xl py-2.5 text-sm font-semibold border transition ${mode === m ? 'bg-[#d8b14c] text-[#1a2a1e] border-[#d8b14c]' : 'bg-white/5 text-white/60 border-white/10 hover:border-white/30'
+                  }`}>
+                {m === 'merge' ? '➕ Merge' : '🔄 Replace'}
+              </button>
+            ))}
+          </div>
+          <p className="text-white/40 text-xs">
+            {mode === 'merge'
+              ? 'New announcements appear alongside default posters.'
+              : 'New announcements replace all default posters.'}
+          </p>
         </div>
-        <p className="text-white/40 text-xs">
-          {mode === 'merge'
-            ? 'New announcements appear alongside default posters in the carousel.'
-            : 'New announcements replace all default posters — only yours show.'}
-        </p>
+
+        {/* Carousel Aspect Ratio */}
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3">
+          <h3 className="text-[#d8b14c] font-semibold text-sm">📐 Carousel Aspect Ratio</h3>
+          <div className="flex gap-2">
+            {(['16:9', '4:3', '9:16'] as const).map(r => (
+              <button key={r} onClick={() => changeAspectRatio(r)}
+                className={`flex-1 rounded-xl py-2.5 text-xs sm:text-sm font-semibold border transition ${aspectRatio === r ? 'bg-[#d8b14c] text-[#1a2a1e] border-[#d8b14c]' : 'bg-white/5 text-white/60 border-white/10 hover:border-white/30'
+                  }`}>
+                {r === '16:9' ? '🖥 16:9' : r === '4:3' ? '📺 4:3' : '📱 9:16'}
+              </button>
+            ))}
+          </div>
+          <p className="text-white/40 text-xs">
+            Choose the aspect ratio for announcements on the home screen.
+          </p>
+        </div>
       </div>
       <div className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-4">
         <h3 className="text-[#d8b14c] font-semibold">Add New Announcement</h3>
@@ -171,10 +277,19 @@ function AnnouncementsTab() {
         <input className={inp} placeholder="Alt text" value={alt} onChange={e => setAlt(e.target.value)} />
         <div>
           <label className="text-white/60 text-sm block mb-1">Poster Image (optional) - Ctrl+V to paste from clipboard</label>
-          <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} className="text-white/70 text-sm" />
+          <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} className="text-white/70 text-sm" disabled={uploading} />
         </div>
-        {imgSrc && <img src={imgSrc} className="h-28 rounded-xl object-cover" alt="preview" />}
-        <button onClick={addItem} className={btn}>Add Announcement</button>
+        {uploading && <div className="text-xs text-[#d8b14c] animate-pulse">⏳ Uploading image to host as WebP...</div>}
+        {err && <div className="text-xs text-red-500">❌ {err}</div>}
+        {imgSrc && !uploading && (
+          <div className="relative inline-block">
+            <img src={imgSrc} className="h-28 rounded-xl object-cover" alt="preview" />
+            <button onClick={() => setImgSrc(null)} className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center">✕</button>
+          </div>
+        )}
+        <button onClick={addItem} className={btn} disabled={uploading}>
+          {uploading ? 'Processing Image...' : 'Add Announcement'}
+        </button>
       </div>
 
       <div className="space-y-3">
@@ -200,12 +315,14 @@ function AnnouncementsTab() {
 // ─── Notifications Tab ────────────────────────────────────────────────────────
 function NotificationsTab() {
   const [items, setItems] = useState<NotificationBanner[]>(() => getNotifications());
-  const [msg,  setMsg]  = useState('');
+  const [msg, setMsg] = useState('');
   const [type, setType] = useState<'static' | 'fading'>('fading');
   const [frequency, setFrequency] = useState<'once' | 'every-visit'>('once');
   const [imgSrc, setImgSrc] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [err, setErr] = useState('');
 
   useEffect(() => {
     function handlePaste(e: ClipboardEvent) {
@@ -215,9 +332,12 @@ function NotificationsTab() {
         if (items[i].type.indexOf('image') !== -1) {
           const file = items[i].getAsFile();
           if (file) {
-            toBase64(file).then(base64 => {
-              setImgSrc(base64);
-            });
+            setUploading(true);
+            setErr('');
+            uploadToImgBB(file)
+              .then(url => setImgSrc(url))
+              .catch(e => setErr(e.message || 'Upload failed'))
+              .finally(() => setUploading(false));
             e.preventDefault();
             break;
           }
@@ -233,7 +353,18 @@ function NotificationsTab() {
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
-    if (f) setImgSrc(await toBase64(f));
+    if (f) {
+      setUploading(true);
+      setErr('');
+      try {
+        const url = await uploadToImgBB(f);
+        setImgSrc(url);
+      } catch (err: any) {
+        setErr(err.message || 'Upload failed');
+      } finally {
+        setUploading(false);
+      }
+    }
   }
 
   function add() {
@@ -290,15 +421,19 @@ function NotificationsTab() {
         </div>
         <div>
           <label className="text-white/60 text-sm block mb-1">Banner Image (optional) - Ctrl+V to paste from clipboard</label>
-          <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} className="text-white/70 text-sm" />
+          <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} className="text-white/70 text-sm" disabled={uploading} />
         </div>
-        {imgSrc && (
+        {uploading && <div className="text-xs text-[#d8b14c] animate-pulse">⏳ Uploading image to host as WebP...</div>}
+        {err && <div className="text-xs text-red-500">❌ {err}</div>}
+        {imgSrc && !uploading && (
           <div className="relative inline-block">
             <img src={imgSrc} className="h-24 rounded-xl object-cover" alt="preview" />
             <button onClick={() => setImgSrc(null)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center">×</button>
           </div>
         )}
-        <button onClick={add} className={btn}>Add Notification</button>
+        <button onClick={add} className={btn} disabled={uploading}>
+          {uploading ? 'Processing Image...' : 'Add Notification'}
+        </button>
       </div>
       <div className="space-y-3">
         {items.length === 0 && <p className="text-white/40 text-sm">No notifications yet.</p>}
@@ -306,11 +441,10 @@ function NotificationsTab() {
           <div key={n.id} className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
             <div className="flex items-start gap-2">
               <span className="text-xs bg-white/10 text-white/60 rounded-full px-2 py-0.5 shrink-0">{n.type}</span>
-              <span className={`text-xs rounded-full px-2 py-0.5 shrink-0 ${
-                (n.frequency ?? 'once') === 'every-visit'
-                  ? 'bg-indigo-600/30 text-indigo-300'
-                  : 'bg-white/10 text-white/50'
-              }`}>
+              <span className={`text-xs rounded-full px-2 py-0.5 shrink-0 ${(n.frequency ?? 'once') === 'every-visit'
+                ? 'bg-indigo-600/30 text-indigo-300'
+                : 'bg-white/10 text-white/50'
+                }`}>
                 {(n.frequency ?? 'once') === 'every-visit' ? '🔁 every visit' : '🔂 once'}
               </span>
               <p className="text-white text-sm flex-1">{n.message}</p>
@@ -339,12 +473,12 @@ const LANG_LABELS_FULL: Record<Language, string> = { en: 'English', ta: 'Tamil',
 function VersesTab() {
   const [items, setItems] = useState<MannaVerse[]>(() => getMannaVerses());
   const [verse, setVerse] = useState('');
-  const [ref_,  setRef]   = useState('');
-  const [refl,  setRefl]  = useState('');
-  const [fetching,  setFetching]  = useState(false);
-  const [fetchErr,  setFetchErr]  = useState('');
+  const [ref_, setRef] = useState('');
+  const [refl, setRefl] = useState('');
+  const [fetching, setFetching] = useState(false);
+  const [fetchErr, setFetchErr] = useState('');
   const [fetchedLangs, setFetchedLangs] = useState<Record<string, string>>({});
-  const [verseMode, setVerseMode] = useState<'multilang'|'english-only'>('multilang');
+  const [verseMode, setVerseMode] = useState<'multilang' | 'english-only'>('multilang');
   const [confirmIndex, setConfirmIndex] = useState<number | null>(null);
 
   function persist(next: MannaVerse[]) { setItems(next); saveMannaVerses(next); }
@@ -355,10 +489,10 @@ function VersesTab() {
     const result = await fetchVerseMultiLang(ref_.trim());
     setFetching(false);
     if ('error' in result) { setFetchErr(result.error); return; }
-    setVerse(`"${result.en ?? ''}"`); 
+    setVerse(`"${result.en ?? ''}"`);
     setRef(result.reference);
     const langs: Record<string, string> = {};
-    for (const l of ['en','hi','te','ta','kn'] as const) {
+    for (const l of ['en', 'hi', 'te', 'ta', 'kn'] as const) {
       if ((result as any)[l]) langs[l] = (result as any)[l];
     }
     setFetchedLangs(langs);
@@ -478,6 +612,8 @@ function VerseOfDayTab() {
   const [imgSrc, setImgSrc] = useState<string | null>(null);
   const [confirmDate, setConfirmDate] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState('');
 
   useEffect(() => {
     function handlePaste(e: ClipboardEvent) {
@@ -487,9 +623,12 @@ function VerseOfDayTab() {
         if (items[i].type.indexOf('image') !== -1) {
           const file = items[i].getAsFile();
           if (file) {
-            toBase64(file).then(base64 => {
-              setImgSrc(base64);
-            });
+            setUploading(true);
+            setUploadErr('');
+            uploadToImgBB(file)
+              .then(url => setImgSrc(url))
+              .catch(err => setUploadErr(err.message || 'Upload failed'))
+              .finally(() => setUploading(false));
             e.preventDefault();
             break;
           }
@@ -506,7 +645,7 @@ function VerseOfDayTab() {
   const [bErr, setBErr] = useState('');
   // Canvas image state
   const [gradientFrom, setGradientFrom] = useState('#1a2e1c');
-  const [gradientTo,   setGradientTo]   = useState('#0d4a1e');
+  const [gradientTo, setGradientTo] = useState('#0d4a1e');
   const [canvasPreview, setCanvasPreview] = useState<string | null>(null);
 
   const entry = days.find(d => d.date === date);
@@ -525,7 +664,18 @@ function VerseOfDayTab() {
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
-    if (f) setImgSrc(await toBase64(f));
+    if (f) {
+      setUploading(true);
+      setUploadErr('');
+      try {
+        const url = await uploadToImgBB(f);
+        setImgSrc(url);
+      } catch (err: any) {
+        setUploadErr(err.message || 'Upload failed');
+      } finally {
+        setUploading(false);
+      }
+    }
   }
 
   async function doFetch() {
@@ -547,8 +697,18 @@ function VerseOfDayTab() {
     setCanvasPreview(img);
   }
 
-  function useCanvasAsImage() {
-    if (canvasPreview) setImgSrc(canvasPreview);
+  async function useCanvasAsImage() {
+    if (!canvasPreview) return;
+    setUploading(true);
+    setUploadErr('');
+    try {
+      const url = await uploadToImgBB(canvasPreview);
+      setImgSrc(url);
+    } catch (e: any) {
+      setUploadErr(e.message || 'Failed to upload generated image');
+    } finally {
+      setUploading(false);
+    }
   }
 
   function save_() {
@@ -618,8 +778,11 @@ function VerseOfDayTab() {
         {/* Verse Image */}
         <div className="space-y-2">
           <label className="text-white/60 text-xs block">Upload Verse Image for {LANG_LABELS[lang]} - Ctrl+V to paste from clipboard</label>
-          <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} className="text-white/70 text-sm" />
+          <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} className="text-white/70 text-sm" disabled={uploading} />
         </div>
+
+        {uploading && <div className="text-xs text-[#d8b14c] animate-pulse">⏳ Uploading image to host as WebP...</div>}
+        {uploadErr && <div className="text-xs text-red-500">❌ {uploadErr}</div>}
 
         {/* Canvas Image Generator */}
         <div className="rounded-xl border border-purple-500/30 bg-purple-900/10 p-4 space-y-3">
@@ -628,20 +791,21 @@ function VerseOfDayTab() {
             {GRADIENT_PRESETS.map(p => (
               <button key={p.label} onClick={() => { setGradientFrom(p.from); setGradientTo(p.to); }}
                 style={{ background: `linear-gradient(135deg, ${p.from}, ${p.to})` }}
-                className={`rounded-lg py-2 px-3 text-xs text-white font-semibold border-2 transition ${gradientFrom === p.from ? 'border-[#d8b14c]' : 'border-transparent hover:border-white/30'}`}>
+                className={`rounded-lg py-2 px-3 text-xs text-white font-semibold border-2 transition ${gradientFrom === p.from ? 'border-[#d8b14c]' : 'border-transparent hover:border-white/30'}`}
+                disabled={uploading}>
                 {p.label}
               </button>
             ))}
           </div>
           <div className="flex gap-2">
-            <button onClick={generateCanvas}
-              className="flex-1 rounded-xl bg-purple-700 hover:bg-purple-600 text-white py-2 text-sm font-bold transition">
+            <button onClick={generateCanvas} disabled={uploading}
+              className="flex-1 rounded-xl bg-purple-700 hover:bg-purple-600 text-white py-2 text-sm font-bold transition disabled:opacity-50">
               🖼 Generate Preview
             </button>
             {canvasPreview && (
-              <button onClick={useCanvasAsImage}
-                className="flex-1 rounded-xl bg-[#d8b14c] hover:bg-[#f0ca60] text-[#1a2a1e] py-2 text-sm font-bold transition">
-                ✅ Use This Image
+              <button onClick={useCanvasAsImage} disabled={uploading}
+                className="flex-1 rounded-xl bg-[#d8b14c] hover:bg-[#f0ca60] text-[#1a2a1e] py-2 text-sm font-bold transition disabled:opacity-50">
+                {uploading ? 'Uploading...' : '✅ Use This Image'}
               </button>
             )}
           </div>
@@ -650,13 +814,13 @@ function VerseOfDayTab() {
           )}
         </div>
 
-        {imgSrc && (
+        {imgSrc && !uploading && (
           <div className="relative inline-block">
             <img src={imgSrc} className="h-32 rounded-xl object-cover" alt="verse img" />
             <button onClick={() => setImgSrc(null)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center">×</button>
           </div>
         )}
-        <button onClick={save_} className={btn}>Save for {date} [{LANG_LABELS[lang]}]</button>
+        <button onClick={save_} className={btn} disabled={uploading}>Save for {date} [{LANG_LABELS[lang]}]</button>
       </div>
 
 
@@ -784,11 +948,10 @@ function SectionsTab() {
               </div>
               <button
                 onClick={() => toggle(key)}
-                className={`shrink-0 rounded-full px-5 py-2 text-xs font-bold transition border ${
-                  isVisible
-                    ? 'bg-green-600 border-green-500 text-white hover:bg-green-500'
-                    : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'
-                }`}
+                className={`shrink-0 rounded-full px-5 py-2 text-xs font-bold transition border ${isVisible
+                  ? 'bg-green-600 border-green-500 text-white hover:bg-green-500'
+                  : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'
+                  }`}
               >
                 {isVisible ? 'Visible' : 'Hidden'}
               </button>
@@ -800,6 +963,67 @@ function SectionsTab() {
   );
 }
 
+// ─── Map Links Tab ────────────────────────────────────────────────────────────
+function MapLinksTab() {
+  const [links, setLinks] = useState<MapLinks>(() => getMapLinks());
+  const [saved, setSaved] = useState(false);
+
+  function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    saveMapLinks(links);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-white">🗺️ Google Map Links</h2>
+        {saved && <span className="text-[#d8b14c] text-sm font-semibold animate-fade-in">✓ Changes Saved Successfully!</span>}
+      </div>
+      <p className="text-white/60 text-xs">
+        Configure the Google Maps URLs utilized for directions on the landing page and service timings sections.
+      </p>
+
+      <form onSubmit={handleSave} className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-5">
+        <div>
+          <label className="text-white/70 text-sm font-medium block mb-1">Sunday Service (Dharmaram Auditorium)</label>
+          <textarea
+            className={inp + ' text-sm'}
+            rows={2}
+            value={links.sundayVenue}
+            onChange={e => setLinks(prev => ({ ...prev, sundayVenue: e.target.value }))}
+            required
+          />
+        </div>
+
+        <div>
+          <label className="text-white/70 text-sm font-medium block mb-1">Main Church (Maruthi Nagar)</label>
+          <textarea
+            className={inp + ' text-sm'}
+            rows={2}
+            value={links.mainChurch}
+            onChange={e => setLinks(prev => ({ ...prev, mainChurch: e.target.value }))}
+            required
+          />
+        </div>
+
+        <div>
+          <label className="text-white/70 text-sm font-medium block mb-1">Hosa Road Branch</label>
+          <textarea
+            className={inp + ' text-sm'}
+            rows={2}
+            value={links.hosaRoadBranch}
+            onChange={e => setLinks(prev => ({ ...prev, hosaRoadBranch: e.target.value }))}
+            required
+          />
+        </div>
+
+        <button type="submit" className={btn}>Save Map Links</button>
+      </form>
+    </div>
+  );
+}
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
 const inp = "w-full rounded-xl border border-white/10 bg-white/10 px-4 py-2.5 text-white placeholder-white/30 outline-none focus:border-[#d8b14c] focus:ring-2 focus:ring-[#d8b14c]/20 resize-none";
@@ -819,6 +1043,7 @@ export default function AdminPanel() {
     { key: 'verseofday', label: '🌅 Verse of Day' },
     { key: 'translations', label: '🌐 Translations' },
     { key: 'sections', label: '⚙️ Sections' },
+    { key: 'maplinks', label: '🗺️ Map Links' },
   ];
 
 
@@ -848,6 +1073,7 @@ export default function AdminPanel() {
         {tab === 'verseofday' && <VerseOfDayTab />}
         {tab === 'translations' && <TranslationsTab />}
         {tab === 'sections' && <SectionsTab />}
+        {tab === 'maplinks' && <MapLinksTab />}
 
       </main>
     </div>
