@@ -71,6 +71,7 @@ const KEYS = {
   MAP_LINKS: 'admin_map_links',
   ANNOUNCEMENT_ASPECT_RATIO: 'admin_announcement_aspect_ratio',
   HERO_BACKGROUND_IMAGE: 'admin_hero_background_image',
+  HIDE_ANNOUNCEMENT_TEXT: 'admin_hide_announcement_text',
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -88,6 +89,7 @@ const FB_PATH: Record<string, string> = {
   [KEYS.MAP_LINKS]: 'mapLinks',
   [KEYS.ANNOUNCEMENT_ASPECT_RATIO]: 'announcementAspectRatio',
   [KEYS.HERO_BACKGROUND_IMAGE]: 'heroBackgroundImage',
+  [KEYS.HIDE_ANNOUNCEMENT_TEXT]: 'hideAnnouncementText',
 };
 
 export const LAST_UPDATED_LOCAL_KEY = 'admin_last_updated';
@@ -286,5 +288,13 @@ export function getHeroBackgroundImage(): string | null {
 }
 export function saveHeroBackgroundImage(image: string | null) {
   save(KEYS.HERO_BACKGROUND_IMAGE, image);
+}
+
+// ─── Hide Announcement Text ──────────────────────────────────────────────────────
+export function getHideAnnouncementText(): boolean {
+  return load<boolean>(KEYS.HIDE_ANNOUNCEMENT_TEXT, false);
+}
+export function saveHideAnnouncementText(hide: boolean) {
+  save(KEYS.HIDE_ANNOUNCEMENT_TEXT, hide);
 }
 

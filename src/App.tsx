@@ -6,6 +6,7 @@ import {
   getAnnouncements, getNotifications, getMannaVerses, getVerseDays, getTranslationOverrides,
   getAnnouncementMode, getSectionVisibility,
   getAnnouncementAspectRatio, getHeroBackgroundImage, ensureArray, getMapLinks,
+  getHideAnnouncementText,
   Announcement, NotificationBanner, MannaVerse, VerseDayEntry, TranslationOverrides, AnnouncementMode, SectionVisibility, MapLinks, AspectRatio,
   LAST_UPDATED_LOCAL_KEY,
 } from "./adminStore";
@@ -260,6 +261,7 @@ export default function App() {
       mapLinks: getMapLinks() as MapLinks,
       announcementAspectRatio: getAnnouncementAspectRatio() as AspectRatio,
       heroBackgroundImage: getHeroBackgroundImage() as string | null,
+      hideAnnouncementText: getHideAnnouncementText() as boolean,
     };
   }
 
@@ -280,6 +282,7 @@ export default function App() {
       mapLinks: raw.mapLinks !== undefined && typeof raw.mapLinks === 'object' ? raw.mapLinks as MapLinks : prev.mapLinks,
       announcementAspectRatio: raw.announcementAspectRatio !== undefined ? raw.announcementAspectRatio as AspectRatio : prev.announcementAspectRatio,
       heroBackgroundImage: raw.heroBackgroundImage !== undefined ? raw.heroBackgroundImage as string | null : prev.heroBackgroundImage,
+      hideAnnouncementText: raw.hideAnnouncementText !== undefined ? Boolean(raw.hideAnnouncementText) : prev.hideAnnouncementText,
     }));
     // Also update localStorage cache so admin panel shows latest data
     if (raw.announcements) localStorage.setItem('admin_announcements', JSON.stringify(raw.announcements));
@@ -292,6 +295,7 @@ export default function App() {
     if (raw.announcementMode) localStorage.setItem('admin_announcement_mode', JSON.stringify(raw.announcementMode));
     if (raw.announcementAspectRatio) localStorage.setItem('admin_announcement_aspect_ratio', JSON.stringify(raw.announcementAspectRatio));
     if (raw.heroBackgroundImage !== undefined) localStorage.setItem('admin_hero_background_image', JSON.stringify(raw.heroBackgroundImage));
+    if (raw.hideAnnouncementText !== undefined) localStorage.setItem('admin_hide_announcement_text', JSON.stringify(raw.hideAnnouncementText));
 
     // Dispatch event so same-tab listeners like NotificationsContainer refresh immediately
     window.dispatchEvent(new CustomEvent('adminDataChanged'));
@@ -301,6 +305,7 @@ export default function App() {
     'admin_announcements', 'admin_notifications', 'admin_manna_verses',
     'admin_verse_of_day', 'admin_translation_overrides', 'admin_section_visibility',
     'admin_map_links', 'admin_announcement_mode', 'admin_announcement_aspect_ratio', 'admin_hero_background_image',
+    'admin_hide_announcement_text',
   ];
 
 
@@ -472,6 +477,8 @@ export default function App() {
   const carouselRef = useRef<HTMLDivElement>(null);
   const verseRef = useRef<HTMLDivElement>(null);
   const mannaRef = useRef<HTMLElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const menuToggleButtonRef = useRef<HTMLButtonElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
 
   const [isDragging, setIsDragging] = useState(false);
@@ -617,6 +624,45 @@ export default function App() {
 
 
   const closeMenu = () => setIsMenuOpen(false);
+
+  useEffect(() => {
+    if (!isMenuOpen) return;
+
+    const handleDocumentClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+
+      if (menuToggleButtonRef.current?.contains(target)) {
+        return;
+      }
+
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(target)) {
+        setIsMenuOpen(false);
+        return;
+      }
+
+      if (mobileMenuRef.current && mobileMenuRef.current.contains(target)) {
+        let current: HTMLElement | null = target;
+        let clickedInteractive = false;
+        while (current && current !== mobileMenuRef.current) {
+          const tagName = current.tagName.toLowerCase();
+          if (tagName === 'a' || tagName === 'button' || tagName === 'select' || tagName === 'option') {
+            clickedInteractive = true;
+            break;
+          }
+          current = current.parentElement;
+        }
+
+        if (!clickedInteractive) {
+          setIsMenuOpen(false);
+        }
+      }
+    };
+
+    document.addEventListener("click", handleDocumentClick, true);
+    return () => {
+      document.removeEventListener("click", handleDocumentClick, true);
+    };
+  }, [isMenuOpen]);
   const prayerMessage = prayerRequest.trim()
     ? `Prayer request: ${prayerRequest.trim()}`
     : "Hello Zion AG Church, I would like to share a prayer request.";
@@ -626,17 +672,18 @@ export default function App() {
     <div className={`min-h-screen bg-[#f7f2e8] dark:bg-[#121212] text-[#24342b] dark:text-[#e4e4e7] ${lang === "te" ? "telugu-font" : ""} ${lang !== "en" ? "indic-lang" : ""}`}>
       <header className="animate-header fixed inset-x-0 top-0 z-50 border-b border-white/25 bg-[#f7f2e8]/60 dark:bg-[#121212]/60 backdrop-blur-xl">
         <nav className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8" aria-label="Main navigation">
-          <a href="#home" onClick={closeMenu} className="flex items-center gap-3 font-serif text-lg tracking-tight text-[#223328] dark:text-white sm:text-xl">
+          <a href="#home" onClick={closeMenu} className="flex items-center gap-3 font-serif text-lg tracking-tight text-[#223328] dark:text-white sm:text-xl shrink-0 whitespace-nowrap">
             <img src="./images/church_logo.webp" alt="Zion AG Logo" className="h-8 w-auto drop-shadow-sm" />
             ZION AG CHURCH
           </a>
 
           <button
+            ref={menuToggleButtonRef}
             type="button"
             aria-label="Toggle navigation menu"
             aria-expanded={isMenuOpen}
             onClick={() => setIsMenuOpen((open) => !open)}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#d7cbb5] dark:border-[#333333] text-[#24342b] dark:text-[#e4e4e7] transition hover:bg-white/70 dark:hover:bg-black/40 focus:outline-none focus:ring-2 focus:ring-[#b48a52] md:hidden"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#d7cbb5] dark:border-[#333333] text-[#24342b] dark:text-[#e4e4e7] transition hover:bg-white/70 dark:hover:bg-black/40 focus:outline-none focus:ring-2 focus:ring-[#b48a52] xl:hidden"
           >
             <span className="sr-only">Menu</span>
             <span className="relative h-4 w-5">
@@ -646,7 +693,7 @@ export default function App() {
             </span>
           </button>
 
-          <div className="hidden items-center gap-7 text-sm font-medium text-[#3f4d43] dark:text-[#a1a1aa] md:flex">
+          <div className="hidden items-center gap-3 xl:gap-4 2xl:gap-7 text-xs 2xl:text-sm font-medium text-[#3f4d43] dark:text-[#a1a1aa] xl:flex">
             {/* Font size control */}
             <div className="flex items-center gap-1 border border-[#dfd2bd] dark:border-[#333333] rounded-full px-2 py-0.5 bg-white/40 dark:bg-black/20 select-none">
               <button
@@ -709,7 +756,7 @@ export default function App() {
         {isMenuOpen && (
           <>
             <div className="fixed inset-0 z-40" onClick={closeMenu} aria-hidden="true" />
-            <div className="mobile-menu relative z-50 border-t border-[#dfd2bd] dark:border-[#333333] bg-[#f7f2e8]/60 dark:bg-[#121212]/60 backdrop-blur-xl px-5 py-5 shadow-2xl shadow-[#3f2c18]/10 md:hidden">
+            <div ref={mobileMenuRef} className="mobile-menu relative z-50 border-t border-[#dfd2bd] dark:border-[#333333] bg-[#f7f2e8]/60 dark:bg-[#121212]/60 backdrop-blur-xl px-5 py-5 shadow-2xl shadow-[#3f2c18]/10 xl:hidden">
               <div className="mb-4 space-y-4 border-b border-[#dfd2bd] dark:border-[#333333] pb-4">
                 {/* Language Row */}
                 <div className="flex items-center justify-between">
@@ -1132,12 +1179,15 @@ export default function App() {
                         className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                       />
                       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-6 pt-16 text-left">
-                        <span className="text-white font-medium text-lg drop-shadow-md">
-                          {poster.label}
-                        </span>
+                        {!adminData.hideAnnouncementText && (
+                          <span className="text-white font-medium text-lg drop-shadow-md">
+                            {poster.label}
+                          </span>
+                        )}
                       </div>
                     </div>
-                  );})}
+                  );
+                })}
               </div>
               <div className="flex justify-center gap-2 mt-8 hidden sm:flex">
                 {announcementPosters.map((_, i) => (

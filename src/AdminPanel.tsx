@@ -10,6 +10,7 @@ import {
   getMapLinks, saveMapLinks,
   getAnnouncementAspectRatio, saveAnnouncementAspectRatio,
   getHeroBackgroundImage, saveHeroBackgroundImage,
+  getHideAnnouncementText, saveHideAnnouncementText,
   Announcement, NotificationBanner, MannaVerse, VerseDayEntry, AnnouncementMode, SectionVisibility, MapLinks, AspectRatio,
 } from "./adminStore";
 
@@ -158,6 +159,7 @@ function AnnouncementsTab() {
   const [items, setItems] = useState<Announcement[]>(() => getAnnouncements());
   const [mode, setMode] = useState<AnnouncementMode>(() => getAnnouncementMode());
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>(() => getAnnouncementAspectRatio());
+  const [hideText, setHideText] = useState<boolean>(() => getHideAnnouncementText());
   const [label, setLabel] = useState('');
   const [alt, setAlt] = useState('');
   const [imgSrc, setImgSrc] = useState<string | null>(null);
@@ -194,6 +196,7 @@ function AnnouncementsTab() {
   function persist(next: Announcement[]) { setItems(next); saveAnnouncements(next); }
   function changeMode(m: AnnouncementMode) { setMode(m); saveAnnouncementMode(m); }
   function changeAspectRatio(r: AspectRatio) { setAspectRatio(r); saveAnnouncementAspectRatio(r); }
+  function changeHideText(val: boolean) { setHideText(val); saveHideAnnouncementText(val); }
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -235,7 +238,7 @@ function AnnouncementsTab() {
     <div className="space-y-6">
       <h2 className="text-xl font-bold text-white">📢 Announcements</h2>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {/* Display mode toggle */}
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3">
           <h3 className="text-[#d8b14c] font-semibold text-sm">📦 Display Mode</h3>
@@ -269,6 +272,26 @@ function AnnouncementsTab() {
           </div>
           <p className="text-white/40 text-xs">
             Choose the aspect ratio for announcements on the home screen.
+          </p>
+        </div>
+
+        {/* Text Overlay option */}
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3">
+          <h3 className="text-[#d8b14c] font-semibold text-sm">👁 Text Overlay</h3>
+          <div className="flex gap-3">
+            {([
+              { text: 'Show Text', value: false },
+              { text: 'Hide Text', value: true }
+            ] as const).map(opt => (
+              <button key={opt.text} onClick={() => changeHideText(opt.value)}
+                className={`flex-1 rounded-xl py-2.5 text-sm font-semibold border transition ${hideText === opt.value ? 'bg-[#d8b14c] text-[#1a2a1e] border-[#d8b14c]' : 'bg-white/5 text-white/60 border-white/10 hover:border-white/30'
+                  }`}>
+                {opt.text}
+              </button>
+            ))}
+          </div>
+          <p className="text-white/40 text-xs">
+            Hide text labels below announcement images inside the home slider.
           </p>
         </div>
       </div>
