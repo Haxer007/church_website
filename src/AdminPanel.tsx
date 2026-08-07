@@ -9,6 +9,7 @@ import {
   getSectionVisibility, saveSectionVisibility,
   getMapLinks, saveMapLinks,
   getAnnouncementAspectRatio, saveAnnouncementAspectRatio,
+  getHeroBackgroundImage, saveHeroBackgroundImage,
   Announcement, NotificationBanner, MannaVerse, VerseDayEntry, AnnouncementMode, SectionVisibility, MapLinks, AspectRatio,
 } from "./adminStore";
 
@@ -477,37 +478,84 @@ function VersesTab() {
   const [refl, setRefl] = useState('');
   const [fetching, setFetching] = useState(false);
   const [fetchErr, setFetchErr] = useState('');
-  const [fetchedLangs, setFetchedLangs] = useState<Record<string, string>>({});
+  const [fetchedLangs, setFetchedLangs] = useState<Record<Language, string>>({
+    en: '', hi: '', te: '', ta: '', kn: ''
+  });
+  const [showAddTranslations, setShowAddTranslations] = useState(false);
   const [verseMode, setVerseMode] = useState<'multilang' | 'english-only'>('multilang');
   const [confirmIndex, setConfirmIndex] = useState<number | null>(null);
+
+  // Edit State
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editRef, setEditRef] = useState('');
+  const [editRefl, setEditRefl] = useState('');
+  const [editLangs, setEditLangs] = useState<Record<Language, string>>({ en: '', hi: '', te: '', ta: '', kn: '' });
+  const [editVerseMode, setEditVerseMode] = useState<'multilang' | 'english-only'>('multilang');
 
   function persist(next: MannaVerse[]) { setItems(next); saveMannaVerses(next); }
 
   async function autoFetchAll() {
     if (!ref_.trim()) { setFetchErr('Enter a reference first (e.g. John 3:16)'); return; }
-    setFetching(true); setFetchErr(''); setFetchedLangs({});
+    setFetching(true); setFetchErr('');
     const result = await fetchVerseMultiLang(ref_.trim());
     setFetching(false);
     if ('error' in result) { setFetchErr(result.error); return; }
-    setVerse(`"${result.en ?? ''}"`);
+
     setRef(result.reference);
-    const langs: Record<string, string> = {};
+    setVerse(result.en ?? '');
+
+    const newLangs: Record<Language, string> = { en: '', hi: '', te: '', ta: '', kn: '' };
     for (const l of ['en', 'hi', 'te', 'ta', 'kn'] as const) {
-      if ((result as any)[l]) langs[l] = (result as any)[l];
+      newLangs[l] = (result as any)[l] || (result as any)['en'] || '';
     }
-    setFetchedLangs(langs);
+    setFetchedLangs(newLangs);
+    setShowAddTranslations(true);
   }
 
   function add() {
-    if (!verse.trim() || !ref_.trim()) return;
+    if (!ref_.trim()) return;
+    const finalVerse = fetchedLangs.en || verse;
     const newVerse: MannaVerse = {
-      verse, reference: ref_, reflection: refl,
-      langs: Object.keys(fetchedLangs).length > 0 ? fetchedLangs as any : undefined,
+      verse: finalVerse,
+      reference: ref_,
+      reflection: refl,
+      langs: fetchedLangs,
       verseMode,
     };
     persist([...items, newVerse]);
-    setVerse(''); setRef(''); setRefl(''); setFetchedLangs({});
+    setVerse('');
+    setRef('');
+    setRefl('');
+    setFetchedLangs({ en: '', hi: '', te: '', ta: '', kn: '' });
+    setShowAddTranslations(false);
   }
+
+  function startEdit(i: number, v: MannaVerse) {
+    setEditingIndex(i);
+    setEditRef(v.reference);
+    setEditRefl(v.reflection || '');
+    setEditVerseMode(v.verseMode || 'multilang');
+    const initialLangs: Record<Language, string> = { en: '', hi: '', te: '', ta: '', kn: '' };
+    for (const l of ['en', 'hi', 'te', 'ta', 'kn'] as const) {
+      initialLangs[l] = v.langs?.[l] || v.verse || '';
+    }
+    setEditLangs(initialLangs);
+  }
+
+  function saveEdit(i: number) {
+    const list = [...items];
+    list[i] = {
+      ...list[i],
+      reference: editRef,
+      reflection: editRefl,
+      verse: editLangs.en,
+      langs: editLangs,
+      verseMode: editVerseMode,
+    };
+    persist(list);
+    setEditingIndex(null);
+  }
+
   function remove(i: number) {
     if (confirmIndex === i) {
       persist(items.filter((_, j) => j !== i));
@@ -530,7 +578,7 @@ function VersesTab() {
             className="flex-1 min-w-0 rounded-xl border border-white/10 bg-white/10 px-4 py-2.5 text-white placeholder-white/30 outline-none focus:border-[#d8b14c]"
             placeholder="Reference (e.g. John 3:16)"
             value={ref_}
-            onChange={e => { setRef(e.target.value); setFetchErr(''); setFetchedLangs({}); }}
+            onChange={e => { setRef(e.target.value); setFetchErr(''); setFetchedLangs({ en: '', hi: '', te: '', ta: '', kn: '' }); }}
             onKeyDown={e => e.key === 'Enter' && autoFetchAll()}
           />
           <button
@@ -541,23 +589,6 @@ function VersesTab() {
           </button>
         </div>
         {fetchErr && <p className="text-red-400 text-xs">{fetchErr}</p>}
-
-        {/* Fetched language chips */}
-        {Object.keys(fetchedLangs).length > 0 && (
-          <div className="space-y-1">
-            <p className="text-green-400 text-xs font-semibold">✅ Fetched languages:</p>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(fetchedLangs).map(([l, text]) => (
-                <span key={l} title={text} className="text-xs bg-green-900/40 border border-green-700/40 text-green-300 rounded-full px-3 py-1">
-                  {LANG_LABELS_FULL[l as Language] ?? l}
-                </span>
-              ))}
-              {Object.keys(fetchedLangs).length < 5 && (
-                <span className="text-xs text-white/30 italic">Some languages unavailable — English used as fallback</span>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* Verse Mode toggle */}
         <div>
@@ -572,29 +603,126 @@ function VersesTab() {
           </div>
         </div>
 
-        <textarea className={inp} rows={3} placeholder="English verse text (auto-filled by Fetch All)…" value={verse} onChange={e => setVerse(e.target.value)} />
+        <textarea className={inp} rows={3} placeholder="English verse text (auto-filled by Fetch All)…" value={verse} onChange={e => { setVerse(e.target.value); setFetchedLangs(prev => ({ ...prev, en: e.target.value })); }} />
+
+        {/* Collapsible translations section */}
+        <div className="rounded-xl border border-white/5 bg-white/5 p-4 space-y-3">
+          <button
+            type="button"
+            onClick={() => setShowAddTranslations(!showAddTranslations)}
+            className="w-full text-left text-white/70 text-xs font-semibold flex items-center justify-between"
+          >
+            <span>🌐 Edit Language Translations</span>
+            <span>{showAddTranslations ? '🔼 Hide' : '🔽 Show'}</span>
+          </button>
+
+          {showAddTranslations && (
+            <div className="space-y-3 pt-3 border-t border-white/5">
+              {(['en', 'hi', 'te', 'ta', 'kn'] as Language[]).map(l => (
+                <div key={l} className="space-y-1">
+                  <label className="text-[10px] text-white/40 uppercase tracking-widest">{LANG_LABELS_FULL[l]} ({l})</label>
+                  <textarea
+                    className={`${inp} text-xs font-sans`}
+                    rows={2}
+                    placeholder={`Translational text in ${LANG_LABELS_FULL[l]}...`}
+                    value={fetchedLangs[l] || ''}
+                    onChange={e => setFetchedLangs(prev => ({ ...prev, [l]: e.target.value }))}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         <textarea className={inp} rows={2} placeholder="Reflection / commentary…" value={refl} onChange={e => setRefl(e.target.value)} />
         <button onClick={add} className={btn}>Add Verse</button>
       </div>
 
       <div className="space-y-3">
         {items.length === 0 && <p className="text-white/40 text-sm">No custom verses added. Default verses are used.</p>}
-        {items.map((v, i) => (
-          <div key={i} className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-1">
-            <p className="text-white text-sm italic">"{v.verse}"</p>
-            <p className="text-[#d8b14c] text-xs font-bold">{v.reference}</p>
-            {v.reflection && <p className="text-white/50 text-xs">{v.reflection}</p>}
-            <div className="flex gap-2 flex-wrap">
-              {v.langs && Object.keys(v.langs).map(l => (
-                <span key={l} className="text-xs bg-white/10 text-white/50 rounded-full px-2 py-0.5">{LANG_LABELS_FULL[l as Language] ?? l}</span>
-              ))}
-              {v.verseMode === 'english-only' && <span className="text-xs bg-yellow-900/30 text-yellow-400 rounded-full px-2 py-0.5">English only</span>}
+        {items.map((v, i) => {
+          const isEditing = editingIndex === i;
+          return (
+            <div key={i} className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3 transition">
+              {isEditing ? (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center pb-2 border-b border-white/10">
+                    <span className="text-[#d8b14c] font-semibold text-sm">✏️ Edit Verse</span>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="text-[10px] text-white/40 uppercase tracking-widest">Reference</label>
+                        <input className={`${inp} text-sm`} placeholder="Reference" value={editRef} onChange={e => setEditRef(e.target.value)} />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-white/40 uppercase tracking-widest">Visitor Mode</label>
+                        <div className="flex gap-2 mt-1">
+                          {(['multilang', 'english-only'] as const).map(m => (
+                            <button key={m} onClick={() => setEditVerseMode(m)}
+                              className={`flex-1 rounded-xl py-2 text-[10px] font-semibold border transition ${editVerseMode === m ? 'bg-[#d8b14c] text-[#1a2a1e] border-[#d8b14c]' : 'bg-white/5 text-white/60 border-white/10'}`}>
+                              {m === 'multilang' ? '🌐 Multi' : '🇬🇧 English'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-white/60 text-xs font-semibold">Language Texts:</p>
+                      {(['en', 'hi', 'te', 'ta', 'kn'] as Language[]).map(l => (
+                        <div key={l} className="space-y-1">
+                          <label className="text-[10px] text-white/40 uppercase tracking-widest">{LANG_LABELS_FULL[l]} ({l})</label>
+                          <textarea
+                            className={`${inp} text-xs font-sans`}
+                            rows={2}
+                            value={editLangs[l] || ''}
+                            onChange={e => setEditLangs(prev => ({ ...prev, [l]: e.target.value }))}
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-white/40 uppercase tracking-widest">Reflection</label>
+                      <textarea className={`${inp} text-sm`} rows={2} placeholder="Reflection" value={editRefl} onChange={e => setEditRefl(e.target.value)} />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button onClick={() => saveEdit(i)} className="rounded-xl bg-green-600 hover:bg-green-500 text-white px-5 py-2 text-xs font-bold transition">
+                      Save Changes
+                    </button>
+                    <button onClick={() => setEditingIndex(null)} className="rounded-xl bg-white/10 hover:bg-white/20 text-white/70 px-5 py-2 text-xs font-bold transition">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p className="text-white text-sm italic">"{v.verse}"</p>
+                  <p className="text-[#d8b14c] text-xs font-bold">{v.reference}</p>
+                  {v.reflection && <p className="text-white/50 text-xs">{v.reflection}</p>}
+                  <div className="flex gap-2 flex-wrap text-white/80">
+                    {v.langs && Object.keys(v.langs).map(l => (
+                      <span key={l} className="text-xs bg-white/10 text-white/50 rounded-full px-2 py-0.5" title={(v.langs as any)[l]}>{LANG_LABELS_FULL[l as Language] ?? l}</span>
+                    ))}
+                    {v.verseMode === 'english-only' && <span className="text-xs bg-yellow-900/30 text-yellow-400 rounded-full px-2 py-0.5">English only</span>}
+                  </div>
+                  <div className="flex gap-3 pt-1 border-t border-white/5">
+                    <button onClick={() => startEdit(i, v)} className="text-blue-400 text-xs hover:text-blue-300 transition font-bold">
+                      ✏️ Edit
+                    </button>
+                    <button onClick={() => remove(i)} className="text-red-400 text-xs hover:text-red-300 transition font-bold">
+                      {confirmIndex === i ? 'Confirm?' : 'Remove'}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
-            <button onClick={() => remove(i)} className="text-red-400 text-xs hover:text-red-300 transition font-bold min-w-[70px] text-left">
-              {confirmIndex === i ? 'Confirm?' : 'Remove'}
-            </button>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -646,6 +774,7 @@ function VerseOfDayTab() {
   // Canvas image state
   const [gradientFrom, setGradientFrom] = useState('#1a2e1c');
   const [gradientTo, setGradientTo] = useState('#0d4a1e');
+  const [canvasFontSize, setCanvasFontSize] = useState<number>(45);
   const [canvasPreview, setCanvasPreview] = useState<string | null>(null);
 
   const entry = days.find(d => d.date === date);
@@ -661,6 +790,20 @@ function VerseOfDayTab() {
       setVerse(''); setRef(''); setRefl(''); setImgSrc(null);
     }
   }, [date, lang, days]);
+
+  // Auto-regenerate canvas preview if it is already displayed
+  useEffect(() => {
+    if (canvasPreview && verse.trim() && ref_.trim()) {
+      const img = generateVerseImage({
+        verse: verse.replace(/^"|"$/g, ''),
+        reference: ref_,
+        gradientFrom,
+        gradientTo,
+        fontSize: canvasFontSize
+      });
+      setCanvasPreview(img);
+    }
+  }, [canvasFontSize, gradientFrom, gradientTo, verse, ref_]);
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -693,7 +836,13 @@ function VerseOfDayTab() {
 
   function generateCanvas() {
     if (!verse.trim() || !ref_.trim()) { alert('Enter verse text and reference first'); return; }
-    const img = generateVerseImage({ verse: verse.replace(/^"|"$/g, ''), reference: ref_, gradientFrom, gradientTo });
+    const img = generateVerseImage({
+      verse: verse.replace(/^"|"$/g, ''),
+      reference: ref_,
+      gradientFrom,
+      gradientTo,
+      fontSize: canvasFontSize
+    });
     setCanvasPreview(img);
   }
 
@@ -797,6 +946,23 @@ function VerseOfDayTab() {
               </button>
             ))}
           </div>
+
+          {/* Custom Font Sizing */}
+          <div className="space-y-1">
+            <div className="flex justify-between items-center">
+              <label className="text-white/60 text-xs font-semibold">Verse Font Size</label>
+              <span className="text-[#d8b14c] text-xs font-bold">{canvasFontSize}px</span>
+            </div>
+            <input
+              type="range"
+              min="20"
+              max="80"
+              value={canvasFontSize}
+              onChange={e => setCanvasFontSize(Number(e.target.value))}
+              className="w-full accent-[#d8b14c] cursor-pointer"
+            />
+          </div>
+
           <div className="flex gap-2">
             <button onClick={generateCanvas} disabled={uploading}
               className="flex-1 rounded-xl bg-purple-700 hover:bg-purple-600 text-white py-2 text-sm font-bold transition disabled:opacity-50">
@@ -913,12 +1079,68 @@ function TranslationsTab() {
 // ─── Sections Tab ─────────────────────────────────────────────────────────────
 function SectionsTab() {
   const [visibility, setVisibility] = useState<SectionVisibility>(() => getSectionVisibility());
+  const [heroBg, setHeroBg] = useState<string | null>(() => getHeroBackgroundImage());
+  const [uploadingHeroBg, setUploadingHeroBg] = useState(false);
+  const [heroBgErr, setHeroBgErr] = useState('');
 
   function toggle(key: keyof SectionVisibility) {
     const next = { ...visibility, [key]: !visibility[key] };
     setVisibility(next);
     saveSectionVisibility(next);
   }
+
+  async function handleHeroBgFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (f) {
+      setUploadingHeroBg(true);
+      setHeroBgErr('');
+      try {
+        const url = await uploadToImgBB(f);
+        setHeroBg(url);
+        saveHeroBackgroundImage(url);
+      } catch (err: any) {
+        setHeroBgErr(err.message || 'Upload failed');
+      } finally {
+        setUploadingHeroBg(false);
+      }
+    }
+  }
+
+  function resetHeroBg() {
+    setHeroBg(null);
+    saveHeroBackgroundImage(null);
+  }
+
+  useEffect(() => {
+    function handlePaste(e: ClipboardEvent) {
+      const activeEl = document.activeElement;
+      if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+        return;
+      }
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const file = items[i].getAsFile();
+          if (file) {
+            setUploadingHeroBg(true);
+            setHeroBgErr('');
+            uploadToImgBB(file)
+              .then(url => {
+                setHeroBg(url);
+                saveHeroBackgroundImage(url);
+              })
+              .catch(err => setHeroBgErr(err.message || 'Upload failed'))
+              .finally(() => setUploadingHeroBg(false));
+            e.preventDefault();
+            break;
+          }
+        }
+      }
+    }
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, []);
 
   const sectionsList: { key: keyof SectionVisibility; label: string; desc: string }[] = [
     { key: 'about', label: '📖 Our Story / About Pastor', desc: 'Displays the pastor biography, photo, and church story' },
@@ -958,6 +1180,53 @@ function SectionsTab() {
             </div>
           );
         })}
+      </div>
+
+      {/* 🖼 Hero Background Settings */}
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-4 mt-8">
+        <h3 className="text-[#d8b14c] font-semibold flex items-center gap-2">
+          <span>🖼 Hero Section Background Image</span>
+        </h3>
+        <p className="text-white/40 text-xs">
+          Upload custom background image for the main site hero section. Paste from clipboard (Ctrl+V) or browse files.
+        </p>
+
+        <div className="flex flex-wrap items-center gap-4">
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleHeroBgFile}
+            className="text-white/70 text-sm"
+            disabled={uploadingHeroBg}
+          />
+          {heroBg && (
+            <button
+              onClick={resetHeroBg}
+              className="rounded-xl bg-red-600/30 border border-red-500/40 text-red-300 px-4 py-2 text-xs font-bold hover:bg-red-600/50 transition"
+            >
+              Reset to Default
+            </button>
+          )}
+        </div>
+
+        {uploadingHeroBg && <div className="text-xs text-[#d8b14c] animate-pulse">⏳ Uploading image to host as WebP...</div>}
+        {heroBgErr && <div className="text-xs text-red-500">❌ {heroBgErr}</div>}
+
+        <div className="rounded-xl border border-white/10 p-3 bg-black/20 flex gap-4 items-center">
+          <div className="w-[120px] aspect-[16/9] rounded-lg overflow-hidden border border-white/10 shrink-0 bg-neutral-800 flex items-center justify-center">
+            <img
+              src={heroBg || './images/church-hero.webp'}
+              alt="Hero Preview"
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div className="space-y-1">
+            <p className="text-white text-xs font-semibold">Active Status</p>
+            <p className="text-white/50 text-[11px] leading-relaxed">
+              {heroBg ? 'Using custom uploaded background image.' : 'Using default local asset (church-hero.webp).'}
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

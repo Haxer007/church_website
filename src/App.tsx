@@ -4,8 +4,9 @@ import { AddToCalendarButton } from 'add-to-calendar-button-react';
 import NotificationsContainer from "./NotificationsContainer";
 import {
   getAnnouncements, getNotifications, getMannaVerses, getVerseDays, getTranslationOverrides,
-  getAnnouncementMode, getSectionVisibility, getAnnouncementAspectRatio, getHeroBackgroundImage, ensureArray,
-  Announcement, NotificationBanner, MannaVerse, VerseDayEntry, TranslationOverrides, AnnouncementMode, SectionVisibility, AspectRatio,
+  getAnnouncementMode, getSectionVisibility,
+  getAnnouncementAspectRatio, getHeroBackgroundImage, ensureArray, getMapLinks,
+  Announcement, NotificationBanner, MannaVerse, VerseDayEntry, TranslationOverrides, AnnouncementMode, SectionVisibility, MapLinks, AspectRatio,
   LAST_UPDATED_LOCAL_KEY,
 } from "./adminStore";
 import { fetchAllChurchData, subscribeToFirebase } from "./firebaseDb";
@@ -111,23 +112,23 @@ const getMinistries = (t: any) => [
   },
 ];
 
-const getContactLocations = (t: any) => [
+const getContactLocations = (t: any, mapLinks: MapLinks) => [
   {
     name: t.mainChurch,
     address: ["22, Maruthi Nagar Main Rd", "beside Amravati Hotel, Zuzuvadi", "BTM Layout, Bengaluru - 560068"],
-    link: "https://www.google.com/maps/search/?api=1&query=22%20Maruthi%20Nagar%20Main%20Rd%20beside%20Amravati%20Hotel%20Zuzuvadi%20BTM%20Layout%20Bengaluru%20560068",
+    link: mapLinks.mainChurch,
     action: t.openMaps,
   },
   {
     name: t.sundayVenue,
     address: ["Christ University College", "Dharmaram Auditorium", "Hosur Road - 560029"],
-    link: mapsLink,
+    link: mapLinks.sundayVenue,
     action: t.getDirections,
   },
   {
     name: t.hosaRoadBranch,
     address: ["324, Hosa Rd, Akshaya Layout", "Sai Sree Layout, Rayasandra", "Bengaluru - 560100"],
-    link: "https://maps.app.goo.gl/VG5doU4NchkBvb3Q6",
+    link: mapLinks.hosaRoadBranch,
     action: t.openMaps,
   },
 ];
@@ -256,6 +257,7 @@ export default function App() {
       verseDays: getVerseDays() as VerseDayEntry[],
       announcementMode: getAnnouncementMode() as AnnouncementMode,
       sectionVisibility: getSectionVisibility() as SectionVisibility,
+      mapLinks: getMapLinks() as MapLinks,
       announcementAspectRatio: getAnnouncementAspectRatio() as AspectRatio,
       heroBackgroundImage: getHeroBackgroundImage() as string | null,
     };
@@ -275,6 +277,7 @@ export default function App() {
       verseDays: raw.verseDays !== undefined ? ensureArray<VerseDayEntry>(raw.verseDays) : prev.verseDays,
       sectionVisibility: raw.sectionVisibility !== undefined && typeof raw.sectionVisibility === 'object' ? raw.sectionVisibility as SectionVisibility : prev.sectionVisibility,
       announcementMode: raw.announcementMode !== undefined ? raw.announcementMode as AnnouncementMode : prev.announcementMode,
+      mapLinks: raw.mapLinks !== undefined && typeof raw.mapLinks === 'object' ? raw.mapLinks as MapLinks : prev.mapLinks,
       announcementAspectRatio: raw.announcementAspectRatio !== undefined ? raw.announcementAspectRatio as AspectRatio : prev.announcementAspectRatio,
       heroBackgroundImage: raw.heroBackgroundImage !== undefined ? raw.heroBackgroundImage as string | null : prev.heroBackgroundImage,
     }));
@@ -285,6 +288,7 @@ export default function App() {
     if (raw.translationOverrides) localStorage.setItem('admin_translation_overrides', JSON.stringify(raw.translationOverrides));
     if (raw.verseDays) localStorage.setItem('admin_verse_of_day', JSON.stringify(raw.verseDays));
     if (raw.sectionVisibility) localStorage.setItem('admin_section_visibility', JSON.stringify(raw.sectionVisibility));
+    if (raw.mapLinks) localStorage.setItem('admin_map_links', JSON.stringify(raw.mapLinks));
     if (raw.announcementMode) localStorage.setItem('admin_announcement_mode', JSON.stringify(raw.announcementMode));
     if (raw.announcementAspectRatio) localStorage.setItem('admin_announcement_aspect_ratio', JSON.stringify(raw.announcementAspectRatio));
     if (raw.heroBackgroundImage !== undefined) localStorage.setItem('admin_hero_background_image', JSON.stringify(raw.heroBackgroundImage));
@@ -296,7 +300,7 @@ export default function App() {
   const ADMIN_LS_KEYS = [
     'admin_announcements', 'admin_notifications', 'admin_manna_verses',
     'admin_verse_of_day', 'admin_translation_overrides', 'admin_section_visibility',
-    'admin_announcement_mode', 'admin_announcement_aspect_ratio', 'admin_hero_background_image',
+    'admin_map_links', 'admin_announcement_mode', 'admin_announcement_aspect_ratio', 'admin_hero_background_image',
   ];
 
 
@@ -380,6 +384,35 @@ export default function App() {
     document.documentElement.style.fontSize = `${fontSize}%`;
   }, [fontSize]);
 
+  const [cachedUrls, setCachedUrls] = useState<Record<string, string>>({});
+
+  // Preload and cache announcement and hero background images in memory as Blob URLs
+  useEffect(() => {
+    const urls = [
+      ...(adminData.heroBackgroundImage ? [adminData.heroBackgroundImage] : []),
+      ...announcementPosters.map(p => p.src).filter(Boolean)
+    ];
+
+    urls.forEach(src => {
+      if (!src) return;
+      if (src.startsWith('blob:') || src.startsWith('data:')) return;
+      if (cachedUrls[src]) return; // Already cached
+
+      fetch(src)
+        .then(res => {
+          if (!res.ok) throw new Error('Fetch failed');
+          return res.blob();
+        })
+        .then(blob => {
+          const blobUrl = URL.createObjectURL(blob);
+          setCachedUrls(prev => ({ ...prev, [src]: blobUrl }));
+        })
+        .catch(err => {
+          console.warn('Failed to cache image in-memory:', src, err);
+        });
+    });
+  }, [announcementPosters, adminData.heroBackgroundImage]);
+
   const handleFontSizeChange = (newSize: number) => {
     const clamped = Math.max(80, Math.min(130, newSize));
     setFontSize(clamped);
@@ -411,7 +444,8 @@ export default function App() {
     ...(adminData.sectionVisibility?.announcements !== false ? [{ label: t.navAnnouncements, href: "#announcements" }] : []),
     ...(adminData.sectionVisibility?.ministries !== false ? [{ label: t.navMinistries, href: "#ministries" }] : []),
     ...(adminData.sectionVisibility?.dailyManna !== false ? [{ label: t.navDailyManna, href: "#daily-manna" }] : []),
-    ...(adminData.sectionVisibility?.manna !== false ? [{ label: "Manna", href: "#manna" }] : []),
+    ...(adminData.sectionVisibility?.manna !== false ? [{ label: t.navManna || "Manna", href: "#manna" }] : []),
+    { label: t.navPrayerRequest || "Prayer Request", href: "#pray" },
     ...(adminData.sectionVisibility?.contact !== false ? [{ label: t.navContact, href: "#contact" }] : []),
     ...(adminData.sectionVisibility?.about !== false ? [{ label: t.navAbout, href: "#about" }] : []),
   ];
@@ -665,9 +699,9 @@ export default function App() {
             ))}
             <button
               onClick={() => setIsOfferingOpen(true)}
-              className="rounded-full bg-[#d8b14c] px-4 py-1.5 text-sm font-bold text-[#1a2a1e] hover:bg-[#f0ca60] transition"
+              className="transition hover:text-[#8a5f2b] dark:text-[#d8b14c] font-medium text-sm text-[#3f4d43] dark:text-[#a1a1aa]"
             >
-              💝 Offer
+              Offering
             </button>
           </div>
         </nav>
@@ -767,15 +801,15 @@ export default function App() {
       {/* ─── Offering Modal ────────────────────────────────────────────── */}
       {isOfferingOpen && (
         <div
-          className="fixed inset-0 z-[200] flex items-center justify-center px-4"
+          className="fixed inset-0 z-[200] flex items-center justify-center px-4 py-6"
           onClick={() => setIsOfferingOpen(false)}
         >
           {/* Backdrop */}
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
 
-          {/* Modal card */}
+          {/* Modal card — narrow on mobile, wide on md+ */}
           <div
-            className="relative z-10 w-full max-w-sm rounded-3xl border border-white/10 bg-[#fffdf9] dark:bg-[#1a2a1e] shadow-2xl overflow-hidden"
+            className="relative z-10 w-full max-w-sm md:max-w-2xl rounded-3xl border border-white/10 bg-[#fffdf9] dark:bg-[#1a2a1e] shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -787,29 +821,21 @@ export default function App() {
               >
                 ✕
               </button>
-              <div className="text-4xl mb-2">💝</div>
-              <h2 className="font-serif text-2xl font-bold text-white">Give an Offering</h2>
-              <p className="text-white/60 text-sm mt-1">Every seed sown is a step of faith</p>
+              <div className="text-4xl md:text-5xl mb-2">💝</div>
+              <h2 className="font-serif text-2xl md:text-3xl font-bold text-white">Give an Offering</h2>
+              <p className="text-white/60 text-sm md:text-base mt-1">Every seed sown is a step of faith</p>
             </div>
 
-            {/* Body */}
-            <div className="px-6 py-6 space-y-5">
-              {/* Scripture verse */}
-              <div className="rounded-2xl bg-gradient-to-br from-[#f6d49b]/40 to-[#d8b14c]/10 dark:from-[#d8b14c]/10 dark:to-[#223328]/40 border border-[#d8b14c]/30 px-4 py-4 text-center space-y-1.5">
-                <p className="text-[#3f2c18] dark:text-[#f6d49b] text-sm leading-relaxed italic font-medium">
-                  "Each of you should give what you have decided in your heart to give, not reluctantly or under compulsion,{" "}
-                  <span className="font-bold not-italic">for God loves a cheerful giver.</span>"
-                </p>
-                <p className="text-[#8a5f2b] dark:text-[#d8b14c] text-xs font-bold tracking-wide">— 2 Corinthians 9:7</p>
-              </div>
+            {/* Body — single col mobile, two col md+ */}
+            <div className="md:flex md:divide-x md:divide-[#dfd2bd] dark:md:divide-white/10">
 
-              {/* QR Code */}
-              <div className="flex flex-col items-center gap-3">
+              {/* Left column (or top on mobile): QR + UPI id */}
+              <div className="flex flex-col items-center justify-center gap-4 px-6 py-6 md:w-1/2">
                 <div className="rounded-2xl border-4 border-[#d8b14c] p-2 bg-white shadow-lg">
                   <img
                     src="./images/upi_qr.png"
                     alt="UPI QR Code – scan to give your offering"
-                    className="w-48 h-48 object-contain"
+                    className="w-44 h-44 md:w-56 md:h-56 object-contain"
                   />
                 </div>
                 <p className="text-[#223328] dark:text-white/80 text-sm font-semibold text-center">
@@ -820,25 +846,37 @@ export default function App() {
                 </p>
               </div>
 
-              {/* Divider */}
-              <div className="flex items-center gap-3">
-                <div className="flex-1 h-px bg-[#dfd2bd] dark:bg-white/10" />
-                <span className="text-xs text-[#8a5f2b]/60 dark:text-white/30 font-semibold uppercase tracking-widest">or</span>
-                <div className="flex-1 h-px bg-[#dfd2bd] dark:bg-white/10" />
+              {/* Right column (or bottom on mobile): verse + button */}
+              <div className="flex flex-col justify-center gap-5 px-6 pb-6 pt-2 md:pt-6 md:w-1/2">
+                {/* Scripture verse */}
+                <div className="rounded-2xl bg-gradient-to-br from-[#f6d49b]/40 to-[#d8b14c]/10 dark:from-[#d8b14c]/10 dark:to-[#223328]/40 border border-[#d8b14c]/30 px-4 py-4 text-center space-y-2">
+                  <p className="text-[#3f2c18] dark:text-[#f6d49b] text-sm md:text-base leading-relaxed italic font-medium">
+                    "Each of you should give what you have decided in your heart to give, not reluctantly or under compulsion,{" "}
+                    <span className="font-bold not-italic">for God loves a cheerful giver.</span>"
+                  </p>
+                  <p className="text-[#8a5f2b] dark:text-[#d8b14c] text-xs md:text-sm font-bold tracking-wide">— 2 Corinthians 9:7</p>
+                </div>
+
+                {/* Divider */}
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px bg-[#dfd2bd] dark:bg-white/10" />
+                  <span className="text-xs text-[#8a5f2b]/60 dark:text-white/30 font-semibold uppercase tracking-widest">or tap</span>
+                  <div className="flex-1 h-px bg-[#dfd2bd] dark:bg-white/10" />
+                </div>
+
+                {/* UPI deep-link button */}
+                <a
+                  href="upi://pay?pa=12295643032922@cnrb&pn=Zion%20AG%20Church&cu=INR"
+                  className="flex items-center justify-center gap-2.5 w-full rounded-2xl bg-gradient-to-r from-[#223328] to-[#2e4d37] text-white font-bold py-4 text-base md:text-lg shadow-lg hover:from-[#2e4d37] hover:to-[#3a5e45] transition-all active:scale-[0.98]"
+                >
+                  <span className="text-xl">🌱</span>
+                  Seed / Give via UPI App
+                </a>
+
+                <p className="text-center text-xs text-[#8a5f2b]/50 dark:text-white/30">
+                  Opens PhonePe, Google Pay, Paytm &amp; other UPI apps
+                </p>
               </div>
-
-              {/* UPI deep-link button */}
-              <a
-                href="upi://pay?pa=12295643032922@cnrb&pn=Zion%20AG%20Church&cu=INR"
-                className="flex items-center justify-center gap-2.5 w-full rounded-2xl bg-gradient-to-r from-[#223328] to-[#2e4d37] text-white font-bold py-4 text-base shadow-lg hover:from-[#2e4d37] hover:to-[#3a5e45] transition-all active:scale-[0.98]"
-              >
-                <span className="text-xl">🌱</span>
-                Seed / Give via UPI App
-              </a>
-
-              <p className="text-center text-xs text-[#8a5f2b]/50 dark:text-white/30">
-                Opens PhonePe, Google Pay, Paytm &amp; other UPI apps
-              </p>
             </div>
           </div>
         </div>
@@ -904,19 +942,19 @@ export default function App() {
                           time: '8:00 AM',
                           venue: t.venueMaruthi || 'Zion AG Church, Maruthi Nagar',
                           address: t.addressMaruthi || '22, Maruthi Nagar Main Rd, beside Amravati Hotel, BTM Layout, Bengaluru - 560068',
-                          mapLink: 'https://www.google.com/maps/search/?api=1&query=22%20Maruthi%20Nagar%20Main%20Rd%20beside%20Amravati%20Hotel%20Zuzuvadi%20BTM%20Layout%20Bengaluru%20560068',
+                          mapLink: adminData.mapLinks.mainChurch,
                         },
                         ta: {
                           time: '8:00 AM',
                           venue: t.venueDharmaram || 'Dharmaram Auditorium, Christ University College',
                           address: t.addressDharmaram || 'Dharmaram College Post, Hosur Road, Bengaluru - 560029',
-                          mapLink: mapsLink,
+                          mapLink: adminData.mapLinks.sundayVenue,
                         },
                         te: {
                           time: '9:30 AM',
                           venue: t.venueDharmaram || 'Dharmaram Auditorium, Christ University College',
                           address: t.addressDharmaram || 'Dharmaram College Post, Hosur Road, Bengaluru - 560029',
-                          mapLink: mapsLink,
+                          mapLink: adminData.mapLinks.sundayVenue,
                         },
                       };
                       const activeService = selectedService || lastSelectedService;
@@ -1087,9 +1125,9 @@ export default function App() {
                       }}
                     >
                       <img
-                        src={poster.src}
+                        src={cachedUrls[poster.src] || poster.src}
                         alt={poster.alt}
-                        loading="lazy"
+                        loading="eager"
                         onDragStart={(e) => e.preventDefault()}
                         className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                       />
@@ -1099,8 +1137,7 @@ export default function App() {
                         </span>
                       </div>
                     </div>
-                  );
-                })}
+                  );})}
               </div>
               <div className="flex justify-center gap-2 mt-8 hidden sm:flex">
                 {announcementPosters.map((_, i) => (
@@ -1383,7 +1420,7 @@ export default function App() {
               <div className="mt-10 grid gap-8 lg:grid-cols-[1.05fr_0.95fr]">
                 <div className="space-y-8">
                   <div className="divide-y divide-[#d8ccb8] border-y border-[#d8ccb8] dark:border-[#333333]">
-                    {getContactLocations(t).map((location) => (
+                    {getContactLocations(t, adminData.mapLinks).map((location) => (
                       <article key={location.name} className="py-6">
                         <h3 className="text-2xl font-semibold tracking-tight text-[#223328] dark:text-white">{location.name}</h3>
                         <div className="mt-3 space-y-1 leading-7 text-[#5c675f] dark:text-[#a1a1aa]">
@@ -1433,8 +1470,7 @@ export default function App() {
                     </div>
                   </div>
                 </div>
-
-                <form className="rounded-[2rem] bg-white/75 dark:bg-black/30 dark:border-white/10 p-5 shadow-xl shadow-[#3d2a17]/8 ring-1 ring-[#e1d4be] sm:p-8">
+                <form id="pray" className="rounded-[2rem] bg-white/75 dark:bg-black/30 dark:border-white/10 p-5 shadow-xl shadow-[#3d2a17]/8 ring-1 ring-[#e1d4be] sm:p-8">
                   <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#9a6b31] dark:text-[#d8b14c]">{t.sendPrayerRequest}</p>
                   <h3 className="mt-3 text-3xl font-semibold tracking-tight text-[#223328] dark:text-white">{t.prayForRequest}</h3>
                   <label className="mt-6 grid gap-2 text-sm font-semibold text-[#33443a] dark:text-gray-200 dark:text-[#a1a1aa]">
@@ -1486,7 +1522,7 @@ export default function App() {
           </button>
           <div className={`transition-transform duration-500 flex items-center justify-center w-full h-full ${isZoomed ? 'scale-[1.6]' : 'scale-100'}`}>
             <img
-              src={selectedImage}
+              src={cachedUrls[selectedImage] || selectedImage}
               alt="Announcement Fullscreen"
               className={`max-h-[90vh] max-w-[90vw] object-contain rounded-xl shadow-2xl ${isZoomed ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
               onClick={(e) => {
