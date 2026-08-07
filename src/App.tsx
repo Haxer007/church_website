@@ -868,7 +868,7 @@ export default function App() {
               >
                 ✕
               </button>
-              <div className="text-4xl md:text-5xl mb-2">💝</div>
+              {/* <div className="text-4xl md:text-5xl mb-2">💝</div> */}
               <h2 className="font-serif text-2xl md:text-3xl font-bold text-white">Give an Offering</h2>
               <p className="text-white/60 text-sm md:text-base mt-1">Every seed sown is a step of faith</p>
             </div>
@@ -878,13 +878,17 @@ export default function App() {
 
               {/* Left column (or top on mobile): QR + UPI id */}
               <div className="flex flex-col items-center justify-center gap-4 px-6 py-6 md:w-1/2">
-                <div className="rounded-2xl border-4 border-[#d8b14c] p-2 bg-white shadow-lg">
+                <a
+                  href="upi://pay?pa=12295643032922@cnrb&pn=Zion%20AG%20Church&cu=INR"
+                  className="rounded-2xl border-4 border-[#d8b14c] p-2 bg-white shadow-lg transition-transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer block"
+                  title="Open in UPI App"
+                >
                   <img
                     src="./images/upi_qr.png"
-                    alt="UPI QR Code – scan to give your offering"
+                    alt="UPI QR Code – scan or click to give your offering"
                     className="w-44 h-44 md:w-56 md:h-56 object-contain"
                   />
-                </div>
+                </a>
                 <p className="text-[#223328] dark:text-white/80 text-sm font-semibold text-center">
                   Scan with any UPI app to give
                 </p>
