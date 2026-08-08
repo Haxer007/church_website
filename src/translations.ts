@@ -86,7 +86,7 @@ export const translations: Record<Language, Record<string, string>> = {
     minBibleTime: "⏰ Every Wednesday · 7 PM (Online)",
     minKidsName: "Kids Bible Club",
     minKidsDesc: "Fun-filled program with games, puppet shows, fancy dress competitions, and moral value teaching for children.",
-    minKidsTime: "⏰ Every Sunday · 5 PM",
+    minKidsTime: "⏰ Every Saturday · 4:30 PM",
     minTeensName: "Teens Fellowship",
     minTeensDesc: "Equipping teens to face spiritual, school, and life challenges with trained professional spiritual teachers.",
     minTeensTime: "⏰ Every Saturday · 7 PM",
