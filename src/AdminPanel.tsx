@@ -11,6 +11,7 @@ import {
   getAnnouncementAspectRatio, saveAnnouncementAspectRatio,
   getHeroBackgroundImage, saveHeroBackgroundImage,
   getHideAnnouncementText, saveHideAnnouncementText,
+  getEvents, saveEvents, EventItem,
   Announcement, NotificationBanner, MannaVerse, VerseDayEntry, AnnouncementMode, SectionVisibility, MapLinks, AspectRatio,
 } from "./adminStore";
 
@@ -102,7 +103,7 @@ async function uploadToImgBB(fileOrBase64: File | string): Promise<string> {
 }
 
 // ─── Tab types ────────────────────────────────────────────────────────────────
-type Tab = 'announcements' | 'notifications' | 'verses' | 'verseofday' | 'translations' | 'sections' | 'maplinks';
+type Tab = 'announcements' | 'events' | 'notifications' | 'verses' | 'verseofday' | 'translations' | 'sections' | 'maplinks';
 
 
 // ─── Login Screen ─────────────────────────────────────────────────────────────
@@ -1099,6 +1100,209 @@ function TranslationsTab() {
   );
 }
 
+// ─── Events & Calendar Tab ───────────────────────────────────────────────────
+function EventsTab() {
+  const [events, setEvents] = useState<EventItem[]>(() => getEvents());
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [title, setTitle] = useState('');
+  const [date, setDate] = useState('');
+  const [time, setTime] = useState('');
+  const [venue, setVenue] = useState('');
+  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('');
+  const [imgSrc, setImgSrc] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [err, setErr] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  function persist(next: EventItem[]) {
+    setEvents(next);
+    saveEvents(next);
+  }
+
+  function resetForm() {
+    setTitle(''); setDate(''); setTime(''); setVenue(''); setDescription(''); setCategory(''); setImgSrc(null); setEditingId(null);
+    if (fileRef.current) fileRef.current.value = '';
+  }
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (f) {
+      setUploading(true);
+      setErr('');
+      try {
+        const url = await uploadToImgBB(f);
+        setImgSrc(url);
+      } catch (err: any) {
+        setErr(err.message || 'Upload failed');
+      } finally {
+        setUploading(false);
+      }
+    }
+  }
+
+  function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title.trim() || !date.trim()) return;
+
+    if (editingId) {
+      persist(events.map(ev => ev.id === editingId ? {
+        ...ev,
+        title, date, time: time || 'TBA', venue: venue || 'Zion AG Church, Madiwala', description, category: category || 'Church Event', image: imgSrc !== null ? imgSrc : ev.image
+      } : ev));
+    } else {
+      const newItem: EventItem = {
+        id: uid(),
+        title,
+        date,
+        time: time || 'TBA',
+        venue: venue || 'Zion AG Church, Madiwala',
+        description,
+        category: category || 'Church Event',
+        image: imgSrc,
+        active: true,
+        createdAt: Date.now(),
+      };
+      persist([newItem, ...events]);
+    }
+    resetForm();
+  }
+
+  function startEdit(item: EventItem) {
+    setEditingId(item.id);
+    setTitle(item.title);
+    setDate(item.date);
+    setTime(item.time);
+    setVenue(item.venue);
+    setDescription(item.description);
+    setCategory(item.category || '');
+    setImgSrc(item.image || null);
+  }
+
+  function remove(id: string) {
+    if (window.confirm('Delete this event from calendar?')) {
+      persist(events.filter(e => e.id !== id));
+      if (editingId === id) resetForm();
+    }
+  }
+
+  function toggleActive(id: string) {
+    persist(events.map(e => e.id === id ? { ...e, active: !e.active } : e));
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-white">📅 Events &amp; Calendar Configurator</h2>
+      </div>
+      <p className="text-white/60 text-xs">
+        Add, edit, or remove church events. Configured events automatically appear on their respective dates on the website calendar in real-time.
+      </p>
+
+      {/* Form */}
+      <form onSubmit={handleSave} className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-4">
+        <h3 className="text-[#d8b14c] font-semibold text-sm">
+          {editingId ? 'Edit Event' : 'Add New Event'}
+        </h3>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="text-white/70 text-xs font-semibold block mb-1">Event Title *</label>
+            <input type="text" className={inp} value={title} onChange={e => setTitle(e.target.value)} required placeholder="e.g. Promise Prayer Service" />
+          </div>
+          <div>
+            <label className="text-white/70 text-xs font-semibold block mb-1">Category</label>
+            <input type="text" className={inp} value={category} onChange={e => setCategory(e.target.value)} placeholder="e.g. Promise Prayer / Worship / Youth" />
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="text-white/70 text-xs font-semibold block mb-1">Event Date (YYYY-MM-DD) *</label>
+            <input type="date" className={inp} value={date} onChange={e => setDate(e.target.value)} required />
+          </div>
+          <div>
+            <label className="text-white/70 text-xs font-semibold block mb-1">Time</label>
+            <input type="text" className={inp} value={time} onChange={e => setTime(e.target.value)} placeholder="e.g. 5:00 AM - 6:30 AM" />
+          </div>
+        </div>
+
+        <div>
+          <label className="text-white/70 text-xs font-semibold block mb-1">Venue / Location</label>
+          <input type="text" className={inp} value={venue} onChange={e => setVenue(e.target.value)} placeholder="e.g. Zion AG Church Main Sanctuary, Madiwala" />
+        </div>
+
+        <div>
+          <label className="text-white/70 text-xs font-semibold block mb-1">Description &amp; Event Details</label>
+          <textarea rows={3} className={inp} value={description} onChange={e => setDescription(e.target.value)} placeholder="Enter details about speaker, purpose, and guidelines..." />
+        </div>
+
+        <div>
+          <label className="text-white/70 text-xs font-semibold block mb-1">Event Image (Upload or Base64/URL)</label>
+          <div className="flex items-center gap-4">
+            <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} className="text-white/70 text-xs" />
+            {imgSrc && (
+              <button type="button" onClick={() => setImgSrc(null)} className="text-xs text-red-400 underline">
+                Remove Image
+              </button>
+            )}
+          </div>
+          {uploading && <p className="text-xs text-[#d8b14c] mt-1">Uploading image...</p>}
+          {err && <p className="text-xs text-red-400 mt-1">{err}</p>}
+          {imgSrc && (
+            <div className="mt-2 h-24 w-36 rounded-lg overflow-hidden border border-white/20">
+              <img src={imgSrc} alt="Preview" className="h-full w-full object-cover" />
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-3 pt-2">
+          <button type="submit" className={btn} disabled={uploading}>
+            {editingId ? 'Update Event' : 'Add Event to Calendar'}
+          </button>
+          {editingId && (
+            <button type="button" onClick={resetForm} className="rounded-xl border border-white/20 px-4 py-2 text-xs text-white/60 hover:text-white">
+              Cancel
+            </button>
+          )}
+        </div>
+      </form>
+
+      {/* Events List */}
+      <div className="space-y-3">
+        <h3 className="text-white font-semibold text-sm">Configured Events ({events.length})</h3>
+        {events.map(item => (
+          <div key={item.id} className={`rounded-xl border p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition ${item.active ? 'border-white/10 bg-white/5' : 'border-white/5 bg-white/2 opacity-60'}`}>
+            <div className="flex items-center gap-3">
+              {item.image && (
+                <img src={item.image} alt={item.title} className="h-12 w-12 rounded-lg object-cover border border-white/10 shrink-0" />
+              )}
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-white text-sm">{item.title}</span>
+                  {item.category && <span className="text-[10px] bg-[#d8b14c]/20 text-[#d8b14c] px-2 py-0.5 rounded-full">{item.category}</span>}
+                </div>
+                <p className="text-white/60 text-xs">{item.date} | {item.time} @ {item.venue}</p>
+                {item.description && <p className="text-white/40 text-[11px] line-clamp-1">{item.description}</p>}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button onClick={() => toggleActive(item.id)} className={`px-3 py-1 text-xs rounded-full border font-semibold ${item.active ? 'bg-green-600/30 text-green-300 border-green-500/30' : 'bg-gray-600/30 text-gray-400 border-gray-500/30'}`}>
+                {item.active ? 'Active' : 'Disabled'}
+              </button>
+              <button onClick={() => startEdit(item)} className="px-3 py-1 text-xs rounded-full bg-blue-600/30 text-blue-300 border border-blue-500/30 font-semibold">
+                Edit
+              </button>
+              <button onClick={() => remove(item.id)} className="px-3 py-1 text-xs rounded-full bg-red-600/30 text-red-300 border border-red-500/30 font-semibold">
+                Delete
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Sections Tab ─────────────────────────────────────────────────────────────
 function SectionsTab() {
   const [visibility, setVisibility] = useState<SectionVisibility>(() => getSectionVisibility());
@@ -1166,25 +1370,30 @@ function SectionsTab() {
   }, []);
 
   const sectionsList: { key: keyof SectionVisibility; label: string; desc: string }[] = [
-    { key: 'about', label: '📖 Our Story / About Pastor', desc: 'Displays the pastor biography, photo, and church story' },
-    { key: 'announcements', label: '📢 Announcements Carousel', desc: 'Displays the interactive sliding announcement posters' },
-    { key: 'ministries', label: '⛪ Ministries Grid', desc: 'Displays the services, groups, and ministry times' },
-    { key: 'promisePrayers', label: '🔥 Promise Prayers Section', desc: 'Displays the monthly Promise Prayer details with Calendar Sync' },
-    { key: 'dailyManna', label: '📖 Daily Manna Scripture Card', desc: 'Displays the dynamic scripture cards and reflections' },
-    { key: 'manna', label: '❤️ Mood Manna ("How are you feeling today?")', desc: 'Interactive dropdown that offers scriptures based on emotions' },
-    { key: 'contact', label: '📞 Contact / Map & Prayer Requests', desc: 'Displays the address details, social links, and prayer request form' },
+    { key: 'about', label: 'Our Story / About Pastor', desc: 'Displays the pastor biography, photo, and church story' },
+    { key: 'announcements', label: 'Announcements Carousel', desc: 'Displays the interactive sliding announcement posters' },
+    { key: 'ministries', label: 'Ministries & Calendar', desc: 'Displays the services, clickable events, and monthly calendar' },
+    { key: 'promisePrayers', label: 'Promise Prayers Section', desc: 'Displays the monthly Promise Prayer details with Calendar Sync' },
+    { key: 'dailyManna', label: 'Daily Manna Scripture Card', desc: 'Displays the dynamic scripture cards and reflections' },
+    { key: 'contact', label: 'Contact / Map & Prayer Requests', desc: 'Displays the address details, social links, and prayer request form' },
+    { key: 'manna', label: 'Mood Manna Section ("How are you feeling today?")', desc: 'Default: OFF (Hidden). Toggle to show on homepage' },
+    { key: 'showEmojis', label: 'Show Emojis Across Site', desc: 'Default: OFF (Clean typography). Toggle to display emojis' },
+    { key: 'showThemeToggle', label: 'Show Theme Switcher in Header', desc: 'Default: OFF. Toggle to show light/dark theme toggle' },
+    { key: 'showFontSizeToggle', label: 'Show Font Size Adjuster in Header', desc: 'Default: OFF. Toggle to show font size controls' },
+    { key: 'showStayConnectedBanner', label: 'Show Stay Connected Banner in Story', desc: 'Default: OFF. Toggle to display banner in story section' },
+    { key: 'showMannaCaption', label: 'Show Extra Manna Caption', desc: 'Default: OFF. Toggle to show caption under Manna heading' },
   ];
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold text-white">⚙️ Section Visibility Settings</h2>
+      <h2 className="text-xl font-bold text-white">⚙️ Section &amp; Display Settings</h2>
       <p className="text-white/60 text-xs">
-        Control which sections are displayed to visitors on the main website homepage. Toggles are saved and updated in real-time.
+        Control which sections and UI elements are displayed to visitors on the website. Toggles update in real-time.
       </p>
 
       <div className="space-y-3">
         {sectionsList.map(({ key, label, desc }) => {
-          const isVisible = visibility[key] !== false;
+          const isVisible = visibility[key] === true || (visibility[key] !== false && !['manna', 'showEmojis', 'showThemeToggle', 'showFontSizeToggle', 'showStayConnectedBanner', 'showMannaCaption'].includes(key));
           return (
             <div key={key} className={`rounded-xl border p-4 flex items-center justify-between gap-4 transition ${isVisible ? 'border-green-500/30 bg-green-500/5' : 'border-white/10 bg-white/5'}`}>
               <div className="space-y-1">
@@ -1205,10 +1414,10 @@ function SectionsTab() {
         })}
       </div>
 
-      {/* 🖼 Hero Background Settings */}
+      {/* Hero Background Settings */}
       <div className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-4 mt-8">
         <h3 className="text-[#d8b14c] font-semibold flex items-center gap-2">
-          <span>🖼 Hero Section Background Image</span>
+          <span>Hero Section Background Image</span>
         </h3>
         <p className="text-white/40 text-xs">
           Upload custom background image for the main site hero section. Paste from clipboard (Ctrl+V) or browse files.
@@ -1329,13 +1538,14 @@ export default function AdminPanel() {
   if (!authed) return <LoginScreen onLogin={() => setAuthed(true)} />;
 
   const tabs: { key: Tab; label: string }[] = [
-    { key: 'announcements', label: '📢 Announcements' },
-    { key: 'notifications', label: '🔔 Notifications' },
-    { key: 'verses', label: '📖 Manna Verses' },
-    { key: 'verseofday', label: '🌅 Verse of Day' },
-    { key: 'translations', label: '🌐 Translations' },
-    { key: 'sections', label: '⚙️ Sections' },
-    { key: 'maplinks', label: '🗺️ Map Links' },
+    { key: 'announcements', label: 'Announcements' },
+    { key: 'events', label: 'Events & Calendar' },
+    { key: 'notifications', label: 'Notifications' },
+    { key: 'verses', label: 'Manna Verses' },
+    { key: 'verseofday', label: 'Verse of Day' },
+    { key: 'translations', label: 'Translations' },
+    { key: 'sections', label: 'Sections & Settings' },
+    { key: 'maplinks', label: 'Map Links' },
   ];
 
 
@@ -1344,7 +1554,7 @@ export default function AdminPanel() {
       <header className="border-b border-white/10 bg-[#0a1610] px-5 py-4 flex items-center justify-between">
         <div>
           <h1 className="font-serif text-lg font-bold text-[#d8b14c]">Zion AG Admin</h1>
-          <p className="text-white/40 text-xs">Content Management</p>
+          <p className="text-white/40 text-xs">Content Management System</p>
         </div>
         <a href="/" className="text-sm text-white/40 hover:text-white/70 transition border border-white/10 rounded-full px-4 py-1.5">← Website</a>
       </header>
@@ -1360,13 +1570,13 @@ export default function AdminPanel() {
 
       <main className="max-w-3xl mx-auto px-5 py-8">
         {tab === 'announcements' && <AnnouncementsTab />}
+        {tab === 'events' && <EventsTab />}
         {tab === 'notifications' && <NotificationsTab />}
         {tab === 'verses' && <VersesTab />}
         {tab === 'verseofday' && <VerseOfDayTab />}
         {tab === 'translations' && <TranslationsTab />}
         {tab === 'sections' && <SectionsTab />}
         {tab === 'maplinks' && <MapLinksTab />}
-
       </main>
     </div>
   );

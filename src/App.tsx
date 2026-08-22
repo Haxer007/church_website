@@ -6,8 +6,8 @@ import {
   getAnnouncements, getNotifications, getMannaVerses, getVerseDays, getTranslationOverrides,
   getAnnouncementMode, getSectionVisibility,
   getAnnouncementAspectRatio, getHeroBackgroundImage, ensureArray, getMapLinks,
-  getHideAnnouncementText,
-  Announcement, NotificationBanner, MannaVerse, VerseDayEntry, TranslationOverrides, AnnouncementMode, SectionVisibility, MapLinks, AspectRatio,
+  getHideAnnouncementText, getEvents, getRecurringEventInstances,
+  Announcement, NotificationBanner, MannaVerse, VerseDayEntry, TranslationOverrides, AnnouncementMode, SectionVisibility, MapLinks, AspectRatio, EventItem,
   LAST_UPDATED_LOCAL_KEY,
 } from "./adminStore";
 import { fetchAllChurchData, subscribeToFirebase } from "./firebaseDb";
@@ -44,10 +44,6 @@ const MOOD_CATEGORIES: MoodCategory[] = [
 ];
 
 
-
-
-
-
 const mapsLink = "https://maps.app.goo.gl/QuRYUhwUz341j8hTA";
 const youtubeLiveLink = "https://www.youtube.com/@ZionAGChurchMadiwala/streams";
 const whatsappNumber = "917760404798";
@@ -58,8 +54,8 @@ const getNavigation = (t: any) => [
   { label: t.navAnnouncements, href: "#announcements" },
   { label: t.navMinistries, href: "#ministries" },
   { label: t.navDailyManna, href: "#daily-manna" },
-  { label: t.navContact, href: "#contact" },
   { label: t.navAbout, href: "#about" },
+  { label: t.connectWithUs || t.navConnectWithUs || "Connect With Us", href: "#contact" },
 ];
 
 const getMinistries = (t: any) => [
@@ -180,12 +176,12 @@ const defaultDailyMannaVerses = [
   }
 ];
 const defaultAnnouncementPosters = [
-  { src: './announcement_images/carecells.jpeg', alt: 'Care Cells', label: '👥 Care Cells' },
-  { src: './announcement_images/fasting_prayer.jpeg', alt: 'Fasting & Prayer', label: '🙏 Fasting & Prayer' },
-  { src: './announcement_images/girls_fellowship.jpeg', alt: 'Girls Fellowship', label: '🌸 Girls Fellowship' },
-  { src: './announcement_images/half_night_prayer.jpeg', alt: 'Half Night Prayer', label: '🔥 Half Night Prayer' },
-  { src: './announcement_images/kids_bible_club.jpeg', alt: 'Kids Bible Club', label: '👶 Kids Bible Club' },
-  { src: './announcement_images/yout_meeting.jpeg', alt: 'Youth Meeting', label: '⚡ Youth Meeting' },
+  { src: './announcement_images/carecells.jpeg', alt: 'Care Cells', label: 'Care Cells' },
+  { src: './announcement_images/fasting_prayer.jpeg', alt: 'Fasting & Prayer', label: 'Fasting & Prayer' },
+  { src: './announcement_images/girls_fellowship.jpeg', alt: 'Girls Fellowship', label: 'Girls Fellowship' },
+  { src: './announcement_images/half_night_prayer.jpeg', alt: 'Half Night Prayer', label: 'Half Night Prayer' },
+  { src: './announcement_images/kids_bible_club.jpeg', alt: 'Kids Bible Club', label: 'Kids Bible Club' },
+  { src: './announcement_images/yout_meeting.jpeg', alt: 'Youth Meeting', label: 'Youth Meeting' },
 ];
 
 
@@ -262,6 +258,7 @@ export default function App() {
       announcementAspectRatio: getAnnouncementAspectRatio() as AspectRatio,
       heroBackgroundImage: getHeroBackgroundImage() as string | null,
       hideAnnouncementText: getHideAnnouncementText() as boolean,
+      events: getEvents().filter(e => e.active) as EventItem[],
     };
   }
 
@@ -283,6 +280,7 @@ export default function App() {
       announcementAspectRatio: raw.announcementAspectRatio !== undefined ? raw.announcementAspectRatio as AspectRatio : prev.announcementAspectRatio,
       heroBackgroundImage: raw.heroBackgroundImage !== undefined ? raw.heroBackgroundImage as string | null : prev.heroBackgroundImage,
       hideAnnouncementText: raw.hideAnnouncementText !== undefined ? Boolean(raw.hideAnnouncementText) : prev.hideAnnouncementText,
+      events: raw.events !== undefined ? ensureArray<EventItem>(raw.events).filter(e => e.active) : prev.events,
     }));
     // Also update localStorage cache so admin panel shows latest data
     if (raw.announcements) localStorage.setItem('admin_announcements', JSON.stringify(raw.announcements));
@@ -296,6 +294,7 @@ export default function App() {
     if (raw.announcementAspectRatio) localStorage.setItem('admin_announcement_aspect_ratio', JSON.stringify(raw.announcementAspectRatio));
     if (raw.heroBackgroundImage !== undefined) localStorage.setItem('admin_hero_background_image', JSON.stringify(raw.heroBackgroundImage));
     if (raw.hideAnnouncementText !== undefined) localStorage.setItem('admin_hide_announcement_text', JSON.stringify(raw.hideAnnouncementText));
+    if (raw.events) localStorage.setItem('admin_events', JSON.stringify(raw.events));
 
     // Dispatch event so same-tab listeners like NotificationsContainer refresh immediately
     window.dispatchEvent(new CustomEvent('adminDataChanged'));
@@ -305,7 +304,7 @@ export default function App() {
     'admin_announcements', 'admin_notifications', 'admin_manna_verses',
     'admin_verse_of_day', 'admin_translation_overrides', 'admin_section_visibility',
     'admin_map_links', 'admin_announcement_mode', 'admin_announcement_aspect_ratio', 'admin_hero_background_image',
-    'admin_hide_announcement_text',
+    'admin_hide_announcement_text', 'admin_events',
   ];
 
 
@@ -668,6 +667,12 @@ export default function App() {
     : "Hello Zion AG Church, I would like to share a prayer request.";
   const prayerWhatsappLink = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(prayerMessage)}`;
 
+  const [selectedEventModal, setSelectedEventModal] = useState<EventItem | null>(null);
+  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
+
+  const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
+  const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
+
   return (
     <div className={`min-h-screen bg-[#f7f2e8] dark:bg-[#121212] text-[#24342b] dark:text-[#e4e4e7] ${lang === "te" ? "telugu-font" : ""} ${lang !== "en" ? "indic-lang" : ""}`}>
       <header className="animate-header fixed inset-x-0 top-0 z-50 border-b border-white/25 bg-[#f7f2e8]/60 dark:bg-[#121212]/60 backdrop-blur-xl">
@@ -694,40 +699,46 @@ export default function App() {
           </button>
 
           <div className="hidden items-center gap-3 xl:gap-4 2xl:gap-7 text-xs 2xl:text-sm font-medium text-[#3f4d43] dark:text-[#a1a1aa] xl:flex">
-            {/* Font size control */}
-            <div className="flex items-center gap-1 border border-[#dfd2bd] dark:border-[#333333] rounded-full px-2 py-0.5 bg-white/40 dark:bg-black/20 select-none">
-              <button
-                onClick={() => handleFontSizeChange(fontSize - 10)}
-                className="text-xs font-bold text-[#8a5f2b] dark:text-[#d8b14c] hover:opacity-80 px-1.5 focus:outline-none"
-                title="Decrease Text Size"
-              >
-                A-
-              </button>
-              <span className="text-[11px] font-bold text-[#3f4d43] dark:text-[#a1a1aa] min-w-[32px] text-center">{fontSize}%</span>
-              <button
-                onClick={() => handleFontSizeChange(fontSize + 10)}
-                className="text-xs font-bold text-[#8a5f2b] dark:text-[#d8b14c] hover:opacity-80 px-1.5 focus:outline-none"
-                title="Increase Text Size"
-              >
-                A+
-              </button>
-            </div>
+            {/* Optional Font size control */}
+            {adminData.sectionVisibility?.showFontSizeToggle && (
+              <div className="flex items-center gap-1 border border-[#dfd2bd] dark:border-[#333333] rounded-full px-2 py-0.5 bg-white/40 dark:bg-black/20 select-none">
+                <button
+                  onClick={() => handleFontSizeChange(fontSize - 10)}
+                  className="text-xs font-bold text-[#8a5f2b] dark:text-[#d8b14c] hover:opacity-80 px-1.5 focus:outline-none"
+                  title="Decrease Text Size"
+                >
+                  A-
+                </button>
+                <span className="text-[11px] font-bold text-[#3f4d43] dark:text-[#a1a1aa] min-w-[32px] text-center">{fontSize}%</span>
+                <button
+                  onClick={() => handleFontSizeChange(fontSize + 10)}
+                  className="text-xs font-bold text-[#8a5f2b] dark:text-[#d8b14c] hover:opacity-80 px-1.5 focus:outline-none"
+                  title="Increase Text Size"
+                >
+                  A+
+                </button>
+              </div>
+            )}
 
-            <button
-              onClick={() => setIsDarkMode(!isDarkMode)}
-              className="text-[#8a5f2b] dark:text-[#d8b14c] transition-all duration-300 hover:scale-110 hover:text-[#b48a52] focus:outline-none flex items-center justify-center"
-              title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            >
-              {isDarkMode ? (
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m0 13.5V21M4.93 4.93l1.59 1.59m10.96 10.96l1.59 1.59M3 12h2.25m13.5 0H21M4.93 19.07l1.59-1.59m10.96-10.96l1.59-1.59M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
-                </svg>
-              )}
-            </button>
+            {/* Optional Theme switcher */}
+            {adminData.sectionVisibility?.showThemeToggle && (
+              <button
+                onClick={() => setIsDarkMode(!isDarkMode)}
+                className="text-[#8a5f2b] dark:text-[#d8b14c] transition-all duration-300 hover:scale-110 hover:text-[#b48a52] focus:outline-none flex items-center justify-center"
+                title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              >
+                {isDarkMode ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m0 13.5V21M4.93 4.93l1.59 1.59m10.96 10.96l1.59 1.59M3 12h2.25m13.5 0H21M4.93 19.07l1.59-1.59m10.96-10.96l1.59-1.59M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+                  </svg>
+                )}
+              </button>
+            )}
+
             <select
               value={lang}
               onChange={(e) => handleLangChange(e.target.value as Language)}
@@ -744,12 +755,6 @@ export default function App() {
                 {item.label}
               </a>
             ))}
-            <button
-              onClick={() => setIsOfferingOpen(true)}
-              className="transition hover:text-[#8a5f2b] dark:text-[#d8b14c] font-medium text-sm text-[#3f4d43] dark:text-[#a1a1aa]"
-            >
-              Offering
-            </button>
           </div>
         </nav>
 
@@ -774,53 +779,6 @@ export default function App() {
                     <option value="hi">हिंदी</option>
                   </select>
                 </div>
-
-                {/* Theme & Font Size Row */}
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-[#8a5f2b] dark:text-[#d8b14c] flex items-center gap-4">
-                    Theme
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsDarkMode(!isDarkMode);
-                      }}
-                      className="text-[#8a5f2b] dark:text-[#d8b14c] transition-all duration-300 hover:scale-110 focus:outline-none flex items-center justify-center"
-                      title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-                    >
-                      {isDarkMode ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m0 13.5V21M4.93 4.93l1.59 1.59m10.96 10.96l1.59 1.59M3 12h2.25m13.5 0H21M4.93 19.07l1.59-1.59m10.96-10.96l1.59-1.59M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                      ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
-                        </svg>
-                      )}
-                    </button>
-                  </span>
-
-                  {/* Font Size controls */}
-                  <div
-                    onClick={(e) => e.stopPropagation()}
-                    className="flex items-center gap-1 border border-[#dfd2bd] dark:border-[#333333] rounded-full px-2 py-0.5 bg-white/40 dark:bg-black/20 select-none"
-                  >
-                    <button
-                      onClick={() => handleFontSizeChange(fontSize - 10)}
-                      className="text-xs font-bold text-[#8a5f2b] dark:text-[#d8b14c] hover:opacity-80 px-1.5 focus:outline-none"
-                      title="Decrease Text Size"
-                    >
-                      A-
-                    </button>
-                    <span className="text-[11px] font-bold text-[#3f4d43] dark:text-[#a1a1aa] min-w-[30px] text-center">{fontSize}%</span>
-                    <button
-                      onClick={() => handleFontSizeChange(fontSize + 10)}
-                      className="text-xs font-bold text-[#8a5f2b] dark:text-[#d8b14c] hover:opacity-80 px-1.5 focus:outline-none"
-                      title="Increase Text Size"
-                    >
-                      A+
-                    </button>
-                  </div>
-                </div>
               </div>
               <div className="grid gap-1">
                 {navItems.map((item) => (
@@ -833,12 +791,6 @@ export default function App() {
                     {item.label}
                   </a>
                 ))}
-                {/* Offering button */}
-                <button
-                  onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); setIsOfferingOpen(true); }}
-                  className="rounded-xl px-3 py-3 text-base font-semibold text-left text-[#8a5f2b] dark:text-[#d8b14c] transition hover:bg-[#f6d49b]/40 dark:hover:bg-[#d8b14c]/10 flex items-center gap-2"
-                >Offering
-                </button>
               </div>
             </div>
           </>
@@ -854,7 +806,7 @@ export default function App() {
           {/* Backdrop */}
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
 
-          {/* Modal card — narrow on mobile, wide on md+ */}
+          {/* Modal card */}
           <div
             className="relative z-10 w-full max-w-sm md:max-w-2xl rounded-3xl border border-white/10 bg-[#fffdf9] dark:bg-[#1a2a1e] shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
@@ -868,15 +820,13 @@ export default function App() {
               >
                 ✕
               </button>
-              {/* <div className="text-4xl md:text-5xl mb-2">💝</div> */}
               <h2 className="font-serif text-2xl md:text-3xl font-bold text-white">Give an Offering</h2>
               <p className="text-white/60 text-sm md:text-base mt-1">Every seed sown is a step of faith</p>
             </div>
 
-            {/* Body — single col mobile, two col md+ */}
+            {/* Body */}
             <div className="md:flex md:divide-x md:divide-[#dfd2bd] dark:md:divide-white/10">
 
-              {/* Left column (or top on mobile): QR + UPI id */}
               <div className="flex flex-col items-center justify-center gap-4 px-6 py-6 md:w-1/2">
                 <a
                   href="upi://pay?pa=12295643032922@cnrb&pn=Zion%20AG%20Church&cu=INR"
@@ -897,9 +847,7 @@ export default function App() {
                 </p>
               </div>
 
-              {/* Right column (or bottom on mobile): verse + button */}
               <div className="flex flex-col justify-center gap-5 px-6 pb-6 pt-2 md:pt-6 md:w-1/2">
-                {/* Scripture verse */}
                 <div className="rounded-2xl bg-gradient-to-br from-[#f6d49b]/40 to-[#d8b14c]/10 dark:from-[#d8b14c]/10 dark:to-[#223328]/40 border border-[#d8b14c]/30 px-4 py-4 text-center space-y-2">
                   <p className="text-[#3f2c18] dark:text-[#f6d49b] text-sm md:text-base leading-relaxed italic font-medium">
                     "Each of you should give what you have decided in your heart to give, not reluctantly or under compulsion,{" "}
@@ -908,19 +856,16 @@ export default function App() {
                   <p className="text-[#8a5f2b] dark:text-[#d8b14c] text-xs md:text-sm font-bold tracking-wide">— 2 Corinthians 9:7</p>
                 </div>
 
-                {/* Divider */}
                 <div className="flex items-center gap-3">
                   <div className="flex-1 h-px bg-[#dfd2bd] dark:bg-white/10" />
                   <span className="text-xs text-[#8a5f2b]/60 dark:text-white/30 font-semibold uppercase tracking-widest">or tap</span>
                   <div className="flex-1 h-px bg-[#dfd2bd] dark:bg-white/10" />
                 </div>
 
-                {/* UPI deep-link button */}
                 <a
                   href="upi://pay?pa=12295643032922@cnrb&pn=Zion%20AG%20Church&cu=INR"
                   className="flex items-center justify-center gap-2.5 w-full rounded-2xl bg-gradient-to-r from-[#223328] to-[#2e4d37] text-white font-bold py-4 text-base md:text-lg shadow-lg hover:from-[#2e4d37] hover:to-[#3a5e45] transition-all active:scale-[0.98]"
                 >
-                  <span className="text-xl">🌱</span>
                   Seed / Give via UPI App
                 </a>
 
@@ -934,7 +879,8 @@ export default function App() {
       )}
 
       <main>
-        <section id="home" className="relative flex min-h-screen items-end overflow-hidden px-5 pb-16 pt-28 sm:px-8 lg:pb-24">
+        {/* ─── Hero / Home Section (Center Aligned Vertically & Horizontally) ─── */}
+        <section id="home" className="relative flex min-h-screen items-center justify-center overflow-hidden px-5 pb-16 pt-28 sm:px-8 lg:pb-24">
           <div
             aria-hidden="true"
             className="hero-photo-motion absolute inset-0 bg-cover bg-top origin-top"
@@ -942,22 +888,22 @@ export default function App() {
           />
           <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-[#17251d]/92 via-[#17251d]/45 to-[#17251d]/10" />
 
-          <div className="animate-hero-copy relative z-10 mx-auto w-full max-w-7xl">
-            <div className="max-w-4xl rounded-[2rem] border border-white/10 bg-black/30 p-6 shadow-2xl backdrop-blur-md sm:p-10 lg:p-12">
+          <div className="animate-hero-copy relative z-10 mx-auto w-full max-w-7xl flex justify-center">
+            <div className="max-w-4xl w-full rounded-[2rem] border border-white/10 bg-black/30 p-6 shadow-2xl backdrop-blur-md sm:p-10 lg:p-12 text-center flex flex-col items-center justify-center">
               <p className="mb-4 text-sm font-semibold uppercase tracking-[0.34em] text-[#f6d49b]">Madiwala, Bengaluru</p>
               <h1 className="font-serif text-5xl leading-[0.95] tracking-tight text-white sm:text-7xl lg:text-8xl">
                 Zion AG Church
               </h1>
-              <p className="mt-5 max-w-xl text-base leading-7 text-white/82 sm:text-lg">
+              <p className="mt-5 max-w-xl text-base leading-7 text-white/82 sm:text-lg mx-auto">
                 {t.christCentered}
               </p>
 
               {/* ── Service Selector ── */}
-              <div className="mt-8">
+              <div className="mt-8 flex flex-col items-center">
                 <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-[#f6d49b]/80">
                   {t.pickServiceLabel || 'Choose your Sunday service'}
                 </p>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap justify-center gap-2">
                   {([
                     { key: 'kn', emoji: '🕊️', label: t.serviceKn || 'ಕನ್ನಡ', sublabel: t.serviceKnSub || 'Kannada' },
                     { key: 'ta', emoji: '⛪', label: t.serviceTa || 'தமிழ் + English', sublabel: t.serviceTaSub || 'Tamil & English' },
@@ -971,6 +917,7 @@ export default function App() {
                         : 'border-white/15 bg-white/5 hover:border-white/30 hover:bg-white/10'
                         }`}
                     >
+
                       <span className="text-lg">{svc.emoji}</span>
                       <span className={`ml-2 text-sm font-bold ${selectedService === svc.key ? 'text-[#f6d49b]' : 'text-white/90'}`}>
                         {svc.label}
@@ -980,10 +927,10 @@ export default function App() {
                   ))}
                 </div>
 
-                {/* ── Selected Service Details (Smooth Transition Wrapper) ── */}
+                {/* ── Selected Service Details ── */}
                 <div
                   ref={serviceDetailsRef}
-                  className={`grid transition-[grid-template-rows,opacity,margin] duration-500 ease-in-out ${selectedService ? 'grid-rows-[1fr] opacity-100 mt-4' : 'grid-rows-[0fr] opacity-0 mt-0 pointer-events-none'
+                  className={`grid transition-[grid-template-rows,opacity,margin] duration-500 ease-in-out w-full max-w-xl ${selectedService ? 'grid-rows-[1fr] opacity-100 mt-4' : 'grid-rows-[0fr] opacity-0 mt-0 pointer-events-none'
                     }`}
                 >
                   <div className="overflow-hidden">
@@ -1019,17 +966,16 @@ export default function App() {
                       const langInfo = langLabels[activeService];
 
                       return (
-                        <div className="rounded-2xl border border-[#d8b14c]/30 bg-gradient-to-br from-[#1a2a1e]/80 to-[#0f1a13]/80 p-5 backdrop-blur-sm shadow-xl">
+                        <div className="rounded-2xl border border-[#d8b14c]/30 bg-gradient-to-br from-[#1a2a1e]/80 to-[#0f1a13]/80 p-5 backdrop-blur-sm shadow-xl text-left">
                           <div className="flex items-start gap-4">
-                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-[#d8b14c]/15 text-2xl">
-                              ⏰
+                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-[#d8b14c]/15 text-2xl font-bold text-[#f6d49b]">
+                              TIME
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
                                 <p className="text-2xl font-bold text-[#f6d49b]">{s.time}</p>
                                 {langInfo && (
                                   <span className="inline-flex items-center gap-1 rounded-full bg-[#d8b14c]/20 px-2.5 py-0.5 text-xs font-semibold text-[#f6d49b] border border-[#d8b14c]/30 shadow-sm backdrop-blur-sm">
-                                    <span>{langInfo.emoji}</span>
                                     <span>{langInfo.label}</span>
                                     <span className="text-[10px] opacity-75">({langInfo.sublabel})</span>
                                   </span>
@@ -1060,7 +1006,7 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Show Watch Live when no service selected (Smooth Transition Wrapper) */}
+                {/* Show Watch Live when no service selected */}
                 <div
                   className={`grid transition-[grid-template-rows,opacity,margin] duration-500 ease-in-out ${!selectedService ? 'grid-rows-[1fr] opacity-100 mt-6' : 'grid-rows-[0fr] opacity-0 mt-0 pointer-events-none'
                     }`}
@@ -1078,13 +1024,14 @@ export default function App() {
           </div>
         </section>
 
+        {/* ─── Story & Pastor Section ─── */}
         {adminData.sectionVisibility?.about !== false && (
           <section id="about" className="relative scroll-mt-24 overflow-hidden bg-[#f7f2e8] dark:bg-[#121212] px-5 py-16 sm:px-8 lg:py-24">
-
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.8)_0%,transparent_70%)] dark:bg-[radial-gradient(circle_at_50%_0%,rgba(216,177,76,0.1)_0%,transparent_70%)]" />          <DarkFluidBackground />
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.8)_0%,transparent_70%)] dark:bg-[radial-gradient(circle_at_50%_0%,rgba(216,177,76,0.1)_0%,transparent_70%)]" />
+            <DarkFluidBackground />
 
             <div className="relative z-10 mx-auto max-w-4xl text-center">
-              <p className="text-[13px] font-semibold uppercase tracking-[0.25em] text-[#9a6b31] dark:text-[#d8b14c]">✦ OUR STORY ✦</p>
+              <p className="text-[13px] font-semibold uppercase tracking-[0.25em] text-[#9a6b31] dark:text-[#d8b14c]">OUR STORY</p>
               <h2 className="mt-4 font-serif text-[42px] leading-[1.2] text-[#223328] dark:text-white drop-shadow-[0_2px_10px_rgba(154,107,49,0.1)] sm:text-[64px]">
                 {t.aboutTitle}
               </h2>
@@ -1098,9 +1045,11 @@ export default function App() {
                   {t.aboutP2}
                 </p>
 
-                <div className="mx-auto mb-8 max-w-2xl rounded-2xl border border-[#d8ccb8] dark:border-[#333333]/50 bg-[#fbf8f1] dark:bg-[#1e1e1e]/80 p-5 text-[15px] font-medium text-[#3f4d43] dark:text-[#a1a1aa] shadow-sm sm:text-[16px]">
-                  {t.aboutBanner}
-                </div>
+                {adminData.sectionVisibility?.showStayConnectedBanner && (
+                  <div className="mx-auto mb-8 max-w-2xl rounded-2xl border border-[#d8ccb8] dark:border-[#333333]/50 bg-[#fbf8f1] dark:bg-[#1e1e1e]/80 p-5 text-[15px] font-medium text-[#3f4d43] dark:text-[#a1a1aa] shadow-sm sm:text-[16px]">
+                    {t.aboutBanner}
+                  </div>
+                )}
 
                 <div className="mx-auto mb-10 flex max-w-2xl items-center justify-center gap-4 text-left sm:text-center">
                   <div className="hidden h-10 w-1 bg-[#d8b14c] sm:block"></div>
@@ -1109,20 +1058,21 @@ export default function App() {
                   </p>
                 </div>
 
+                {/* Pastor Information Section (Uniform Consistent Text Color) */}
                 <div className="mx-auto mt-10 max-w-2xl border-t border-[#d8ccb8] dark:border-[#333333]/50 pt-10 text-center">
                   <div className="mx-auto mb-6 flex h-40 w-40 sm:h-52 sm:w-52 items-center justify-center overflow-hidden rounded-full border-4 border-white shadow-xl ring-2 ring-[#e1d4be]">
                     <img
                       src="./images/pastor.webp"
-                      alt="{t.pastorName}"
+                      alt={t.pastorName}
                       className="h-full w-full object-cover"
                     />
                   </div>
-                  <h3 className="font-serif text-[26px] font-semibold text-[#8a5f2b] dark:text-[#d8b14c] sm:text-[30px]">{t.pastorName}</h3>
-                  <p className="mt-2 text-[13px] font-bold uppercase tracking-widest text-[#5c675f] dark:text-[#a1a1aa] sm:text-[14px]">
+                  <h3 className="font-serif text-[26px] font-semibold text-[#223328] dark:text-white sm:text-[30px]">{t.pastorName}</h3>
+                  <p className="mt-2 text-[13px] font-bold uppercase tracking-widest text-[#223328]/80 dark:text-white/80 sm:text-[14px]">
                     {t.pastorTitle}
                   </p>
-                  <p className="mt-5 text-[15px] leading-[1.8] text-[#4f5c53] dark:text-gray-200 sm:text-[16px]">
-                    {t.pastorDesc.split("Pastor Sheeba")[0]}<span className="font-semibold text-[#8a5f2b] dark:text-[#d8b14c]">{t.pastorDesc.split("Pastor Sheeba")[1]}</span>{t.pastorDesc.split("Pastor Sheeba")[2]}
+                  <p className="mt-5 text-[15px] leading-[1.8] text-[#223328] dark:text-white sm:text-[16px]">
+                    {t.pastorDesc}
                   </p>
                 </div>
               </div>
@@ -1130,14 +1080,14 @@ export default function App() {
           </section>
         )}
 
-
+        {/* ─── Announcements Carousel Section ─── */}
         {adminData.sectionVisibility?.announcements !== false && (
           <section id="announcements" className="section-reveal scroll-mt-24 px-5 py-16 sm:px-8 lg:py-24 relative overflow-hidden">
-
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_100%_100%,rgba(216,177,76,0.08)_0%,transparent_50%)]" />          <DarkFluidBackground />
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_100%_100%,rgba(216,177,76,0.08)_0%,transparent_50%)]" />
+            <DarkFluidBackground />
 
             <div className="mx-auto max-w-6xl text-center relative z-10">
-              <p className="text-[13px] font-semibold uppercase tracking-[0.25em] text-[#9a6b31] dark:text-[#d8b14c]">{t.stayUpdated}</p>
+              <p className="text-[13px] font-semibold uppercase tracking-[0.25em] text-[#9a6b31] dark:text-[#d8b14c]">STAY UPDATED</p>
               <h2 className="mt-4 font-serif text-[42px] leading-[1.2] text-[#223328] dark:text-white sm:text-[56px] drop-shadow-[0_2px_10px_rgba(154,107,49,0.1)]">
                 {t.announcementsTitle}
               </h2>
@@ -1208,28 +1158,41 @@ export default function App() {
           </section>
         )}
 
-
+        {/* ─── Events & Calendar Section ─── */}
         {adminData.sectionVisibility?.ministries !== false && (
           <section id="ministries" className="relative scroll-mt-24 overflow-hidden bg-[#f7f2e8] dark:bg-[#121212] px-3 py-16 sm:px-8 lg:py-24">
-
-            {/* Radial Glow Background */}
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.8)_0%,transparent_70%)] dark:bg-[radial-gradient(circle_at_50%_0%,rgba(216,177,76,0.1)_0%,transparent_70%)]" />
 
             <div className="relative z-10 mx-auto max-w-6xl text-center">
-              <p className="text-[11px] sm:text-[13px] font-semibold uppercase tracking-[0.25em] text-[#9a6b31] dark:text-[#d8b14c]">{t.growWithUs}</p>
+              <p className="text-[11px] sm:text-[13px] font-semibold uppercase tracking-[0.25em] text-[#9a6b31] dark:text-[#d8b14c]">GROW WITH US</p>
               <h2 className="mt-3 font-serif text-[32px] sm:text-[42px] leading-[1.2] text-[#223328] dark:text-white drop-shadow-[0_2px_10px_rgba(154,107,49,0.1)] lg:text-[64px]">
                 {t.ministriesTitle}
               </h2>
 
+              {/* Clickable Event / Ministry Cards */}
               <div className="mt-8 sm:mt-12 grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4">
                 {getMinistries(t).map((ministry) => (
                   <article
                     key={ministry.name}
-                    className="group relative flex h-full flex-col overflow-hidden rounded-[20px] sm:rounded-[28px] border border-white/60 bg-white/50 dark:bg-black/30 dark:border-white/10 p-4 sm:p-6 text-center shadow-[0_12px_30px_rgba(61,42,23,0.08)] -translate-y-1 cursor-pointer backdrop-blur-[12px] transition-all duration-300 ease-out hover:-translate-y-2 hover:border-[#d8b14c]/50 dark:border-[#d8b14c]/30 hover:shadow-[0_20px_40px_rgba(154,107,49,0.15)] active:scale-105 active:shadow-[0_24px_50px_rgba(154,107,49,0.25)] before:absolute before:-left-[150%] before:top-0 before:z-0 before:h-full before:w-[50%] before:-skew-x-[25deg] before:bg-gradient-to-r before:from-transparent before:via-white/70 before:to-transparent before:transition-all before:duration-700 hover:before:left-[200%]"
+                    onClick={() => setSelectedEventModal({
+                      id: ministry.name,
+                      title: ministry.name,
+                      date: 'Weekly / Monthly Schedule',
+                      time: ministry.time,
+                      venue: 'Zion AG Church Main Sanctuary / Christ University',
+                      description: ministry.description,
+                      image: './images/church-hero.webp',
+                      category: 'Ministry Event',
+                      active: true,
+                      createdAt: Date.now(),
+                    })}
+                    className="group relative flex h-full flex-col overflow-hidden rounded-[20px] sm:rounded-[28px] border border-white/60 bg-white/50 dark:bg-black/30 dark:border-white/10 p-4 sm:p-6 text-center shadow-[0_12px_30px_rgba(61,42,23,0.08)] -translate-y-1 cursor-pointer backdrop-blur-[12px] transition-all duration-300 ease-out hover:-translate-y-2 hover:border-[#d8b14c]/50 dark:border-[#d8b14c]/30 hover:shadow-[0_20px_40px_rgba(154,107,49,0.15)] active:scale-105"
                   >
-                    <div className="relative z-10 mb-3 sm:mb-4 text-[24px] sm:text-[32px] transition-transform duration-300 group-hover:scale-110">
-                      {ministry.emoji}
-                    </div>
+                    {adminData.sectionVisibility?.showEmojis && (
+                      <div className="relative z-10 mb-3 sm:mb-4 text-[24px] sm:text-[32px] transition-transform duration-300 group-hover:scale-110">
+                        {ministry.emoji}
+                      </div>
+                    )}
                     <h3 className="relative z-10 mb-2 sm:mb-3 font-serif text-[16px] sm:text-[22px] font-semibold text-[#223328] dark:text-white leading-tight">
                       {ministry.name}
                     </h3>
@@ -1242,14 +1205,215 @@ export default function App() {
                   </article>
                 ))}
               </div>
+
+              {/* ─── Promise Prayer & Events Calendar ─── */}
+              {(() => {
+                const CATS: Record<string, { pill: string; dot: string; badge: string; badgeText: string }> = {
+                  'Promise Prayer': { pill: 'bg-violet-100 text-violet-800 dark:bg-violet-900/60 dark:text-violet-200', dot: 'bg-violet-500', badge: 'bg-violet-600', badgeText: 'text-white' },
+                  'Prayer': { pill: 'bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-200', dot: 'bg-blue-500', badge: 'bg-blue-600', badgeText: 'text-white' },
+                  'Worship': { pill: 'bg-[#f6d49b]/60 text-[#8a5f2b] dark:bg-[#d8b14c]/20 dark:text-[#f6d49b]', dot: 'bg-[#d8b14c]', badge: 'bg-[#d8b14c]', badgeText: 'text-[#1a2a1e]' },
+                  'Youth': { pill: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200', dot: 'bg-emerald-500', badge: 'bg-emerald-600', badgeText: 'text-white' },
+                  'default': { pill: 'bg-[#223328]/10 text-[#223328] dark:bg-white/10 dark:text-white', dot: 'bg-[#223328] dark:bg-white', badge: 'bg-[#223328]', badgeText: 'text-white' },
+                };
+                const getCat = (cat?: string) => CATS[cat || ''] || CATS['default'];
+
+                const year = calendarMonth.getFullYear();
+                const month = calendarMonth.getMonth();
+                const daysInMonth = getDaysInMonth(year, month);
+                const startDay = getFirstDayOfMonth(year, month);
+                const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+                const DAY_SHORT = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+                const DAY_LONG = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+                // Merge stored events with auto-generated recurring instances
+                const recurringInstances = getRecurringEventInstances(year, month);
+                const allCalendarEvents: EventItem[] = [
+                  ...adminData.events,
+                  // Add recurring instances only if no stored event already has the same rec-id
+                  ...recurringInstances.filter(ri =>
+                    !adminData.events.some(se => se.id === ri.id)
+                  ),
+                ];
+
+                const upcomingEvents = allCalendarEvents
+                  .filter(e => { const d = new Date(e.date); return d.getFullYear() === year && d.getMonth() === month; })
+                  .sort((a, b) => a.date.localeCompare(b.date));
+
+                return (
+                  <div className="mt-10 sm:mt-16 rounded-[24px] sm:rounded-[32px] border border-[#d8b14c]/25 bg-white/70 dark:bg-black/40 shadow-[0_16px_48px_rgba(61,42,23,0.10)] dark:shadow-[0_16px_48px_rgba(0,0,0,0.35)] backdrop-blur-xl overflow-hidden">
+
+                    {/* ── Card Header ── */}
+                    <div className="relative px-4 pt-5 pb-4 sm:px-8 sm:pt-7 sm:pb-5 border-b border-[#d8ccb8]/50 dark:border-white/8 bg-gradient-to-r from-[#223328]/5 to-transparent dark:from-[#d8b14c]/5 dark:to-transparent">
+                      {/* decorative orb */}
+                      <div className="pointer-events-none absolute -top-12 -right-12 h-40 w-40 rounded-full bg-[#d8b14c]/10 blur-2xl" />
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-[#9a6b31] dark:text-[#d8b14c]">Church Calendar</p>
+                          <h3 className="mt-0.5 font-serif text-xl sm:text-2xl font-bold text-[#223328] dark:text-white leading-tight">
+                            Promise Prayer &amp; Events
+                          </h3>
+                        </div>
+                        {/* Month navigator */}
+                        <div className="flex items-center gap-0.5 rounded-xl border border-[#d8ccb8] dark:border-white/10 bg-white/60 dark:bg-white/5 overflow-hidden">
+                          <button
+                            onClick={() => setCalendarMonth(new Date(year, month - 1, 1))}
+                            className="h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center text-lg font-bold text-[#8a5f2b] dark:text-[#d8b14c] hover:bg-[#f6d49b]/40 dark:hover:bg-white/10 transition-colors"
+                            aria-label="Previous Month"
+                          >‹</button>
+                          <span className="px-2 sm:px-3 font-serif font-bold text-sm sm:text-base text-[#223328] dark:text-white min-w-[120px] sm:min-w-[140px] text-center select-none">
+                            {MONTH_NAMES[month]} {year}
+                          </span>
+                          <button
+                            onClick={() => setCalendarMonth(new Date(year, month + 1, 1))}
+                            className="h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center text-lg font-bold text-[#8a5f2b] dark:text-[#d8b14c] hover:bg-[#f6d49b]/40 dark:hover:bg-white/10 transition-colors"
+                            aria-label="Next Month"
+                          >›</button>
+                        </div>
+                      </div>
+
+                      {/* Category legend – scrollable horizontally on mobile */}
+                      <div className="mt-3 flex gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
+                        {Object.entries(CATS).filter(([k]) => k !== 'default').map(([cat, s]) => (
+                          <span key={cat} className={`shrink-0 flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${s.pill}`}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
+                            {cat}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* ── Calendar + Events ── */}
+                    <div className="flex flex-col lg:flex-row">
+
+                      {/* Grid */}
+                      <div className="flex-1 px-3 pt-4 pb-3 sm:px-6 sm:pt-5 sm:pb-4">
+                        {/* Weekday row */}
+                        <div className="grid grid-cols-7 mb-1.5">
+                          {DAY_SHORT.map((d, i) => (
+                            <div key={i} className="text-center text-[10px] sm:text-xs font-bold uppercase tracking-wider text-[#9a6b31]/60 dark:text-[#d8b14c]/50 py-1">
+                              <span className="sm:hidden">{d}</span>
+                              <span className="hidden sm:inline">{DAY_LONG[i]}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Day cells */}
+                        <div className="grid grid-cols-7 gap-[3px] sm:gap-1">
+                          {Array.from({ length: startDay }).map((_, i) => (
+                            <div key={`blank-${i}`} className="aspect-square sm:min-h-[64px] sm:aspect-auto" />
+                          ))}
+                          {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d => {
+                            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                            const dayEvents = allCalendarEvents.filter(e => e.date === dateStr);
+                            const isToday = new Date().toISOString().slice(0, 10) === dateStr;
+                            const hasEvents = dayEvents.length > 0;
+
+                            return (
+                              <div
+                                key={d}
+                                onClick={() => hasEvents ? setSelectedEventModal(dayEvents[0]) : undefined}
+                                className={`aspect-square sm:aspect-auto sm:min-h-[64px] rounded-lg sm:rounded-xl p-1 sm:p-2 flex flex-col transition-all duration-150 border ${isToday
+                                    ? 'border-[#d8b14c] bg-[#f6d49b]/30 dark:bg-[#d8b14c]/15 shadow-sm'
+                                    : hasEvents
+                                      ? 'border-[#d8ccb8] dark:border-white/15 bg-[#f7f2e8]/80 dark:bg-white/6 hover:border-[#d8b14c]/60 cursor-pointer'
+                                      : 'border-[#ece6d8]/60 dark:border-white/5 bg-transparent hover:bg-[#f6d49b]/10 dark:hover:bg-white/4'
+                                  }`}
+                              >
+                                {/* Date number */}
+                                <span className={`text-[11px] sm:text-sm font-bold leading-none self-start ${isToday
+                                    ? 'inline-flex h-[18px] w-[18px] sm:h-6 sm:w-6 items-center justify-center rounded-full bg-[#d8b14c] text-[#1a2a1e] text-[10px] sm:text-xs'
+                                    : hasEvents
+                                      ? 'text-[#223328] dark:text-white'
+                                      : 'text-[#9a8c7a] dark:text-white/30'
+                                  }`}>
+                                  {d}
+                                </span>
+
+                                {/* Event indicators */}
+                                <div className="mt-auto pt-0.5">
+                                  {/* Mobile: coloured dots */}
+                                  {dayEvents.length > 0 && (
+                                    <div className="flex sm:hidden gap-[3px] flex-wrap justify-center">
+                                      {dayEvents.slice(0, 3).map(evt => (
+                                        <button
+                                          key={evt.id}
+                                          onClick={() => setSelectedEventModal(evt)}
+                                          className={`h-[5px] w-[5px] rounded-full ${getCat(evt.category).dot} active:scale-150 transition-transform`}
+                                          title={evt.title}
+                                        />
+                                      ))}
+                                    </div>
+                                  )}
+                                  {/* Desktop: text pills */}
+                                  <div className="hidden sm:flex flex-col gap-[3px]">
+                                    {dayEvents.slice(0, 2).map(evt => (
+                                      <button
+                                        key={evt.id}
+                                        onClick={() => setSelectedEventModal(evt)}
+                                        className={`w-full text-left truncate rounded-md px-1.5 py-[2px] text-[10px] font-semibold transition-opacity hover:opacity-75 ${getCat(evt.category).pill}`}
+                                        title={evt.title}
+                                      >
+                                        {evt.title}
+                                      </button>
+                                    ))}
+                                    {dayEvents.length > 2 && (
+                                      <p className="text-[9px] text-[#9a6b31]/60 dark:text-[#d8b14c]/50 pl-1">+{dayEvents.length - 2} more</p>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* ── Events List ── stacks below on mobile, sidebar on lg+ */}
+                      <div className="lg:w-64 xl:w-72 border-t lg:border-t-0 lg:border-l border-[#d8ccb8]/60 dark:border-white/8 px-4 pt-4 pb-5 sm:px-6 sm:pt-5">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#9a6b31] dark:text-[#d8b14c] mb-3">
+                          {MONTH_NAMES[month]} — {upcomingEvents.length} {upcomingEvents.length === 1 ? 'Event' : 'Events'}
+                        </p>
+                        <div className="space-y-2 max-h-[340px] lg:max-h-[460px] overflow-y-auto pr-0.5">
+                          {upcomingEvents.length === 0 ? (
+                            <div className="rounded-2xl border border-[#d8ccb8]/50 dark:border-white/8 bg-[#f6d49b]/10 dark:bg-white/3 p-4 text-center">
+                              <p className="text-[#8a5f2b]/60 dark:text-white/30 text-sm">No events this month</p>
+                              <p className="text-[#8a5f2b]/40 dark:text-white/20 text-xs mt-0.5">Add events via Admin Panel</p>
+                            </div>
+                          ) : upcomingEvents.map(evt => {
+                            const c = getCat(evt.category);
+                            const day = new Date(evt.date).getUTCDate();
+                            const dn = DAY_LONG[new Date(evt.date).getUTCDay()];
+                            return (
+                              <button
+                                key={evt.id}
+                                onClick={() => setSelectedEventModal(evt)}
+                                className="w-full text-left group flex gap-2.5 rounded-xl border border-[#d8ccb8]/50 dark:border-white/8 bg-white/60 dark:bg-white/4 hover:border-[#d8b14c]/50 dark:hover:border-white/20 hover:bg-[#f6d49b]/20 dark:hover:bg-white/8 p-2.5 transition-all duration-150 shadow-sm hover:shadow-md"
+                              >
+                                <div className={`shrink-0 flex flex-col items-center justify-center h-10 w-10 rounded-xl ${c.badge} ${c.badgeText} shadow-sm`}>
+                                  <span className="text-[9px] font-bold opacity-80 leading-none">{dn}</span>
+                                  <span className="text-[15px] font-extrabold leading-tight">{day}</span>
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-xs sm:text-sm font-bold text-[#223328] dark:text-white truncate group-hover:text-[#8a5f2b] dark:group-hover:text-[#d8b14c] transition-colors leading-snug">{evt.title}</p>
+                                  <p className="text-[10px] text-[#8a5f2b]/70 dark:text-[#d8b14c]/60 mt-0.5 truncate">{evt.time}</p>
+                                  <p className="text-[9px] text-[#5c675f]/60 dark:text-white/30 truncate">{evt.venue}</p>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </section>
         )}
 
-
+        {/* ─── Promise Prayer Banner ─── */}
         {adminData.sectionVisibility?.promisePrayers !== false && (
-          <section id="promise-prayers" className="relative px-5 py-16 sm:px-8 lg:py-24 bg-white/40 dark:bg-[#121212]/80">          <DarkFluidBackground />
-
+          <section id="promise-prayers" className="relative px-5 py-16 sm:px-8 lg:py-24 bg-white/40 dark:bg-[#121212]/80">
+            <DarkFluidBackground />
             <div className="mx-auto max-w-4xl rounded-[32px] border border-[#d8b14c]/30 bg-white/70 dark:bg-black/30 dark:border-white/10 p-8 shadow-[0_12px_40px_rgba(154,107,49,0.08)] backdrop-blur-xl sm:p-12 text-center">
               <h2 className="font-serif text-3xl sm:text-4xl text-[#223328] dark:text-white font-bold mb-4">{t.promisePrayers}</h2>
               <p className="text-lg leading-relaxed text-[#4f5c53] dark:text-gray-200 mb-8">
@@ -1272,16 +1436,12 @@ export default function App() {
                 />
               </div>
             </div>
-
-
           </section>
         )}
 
-
+        {/* ─── Daily Manna Section ─── */}
         {adminData.sectionVisibility?.dailyManna !== false && (
           <section id="daily-manna" className="relative scroll-mt-24 overflow-hidden px-5 py-16 sm:px-8 lg:py-24">
-
-            {/* Subtle background decoration */}
             <div className="pointer-events-none absolute inset-0 bg-[#f7f2e8] dark:bg-[#121212]">
               <div className="absolute left-1/2 top-1/2 h-[800px] w-[800px] -translate-x-1/2 -translate-y-1/2 bg-[radial-gradient(circle,rgba(216,177,76,0.06)_0%,transparent_70%)]" />
             </div>
@@ -1290,11 +1450,7 @@ export default function App() {
               <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[#9a6b31] dark:text-[#d8b14c]">{t.navDailyManna}</p>
               <h2 className="mt-3 font-serif text-4xl tracking-tight text-[#223328] dark:text-white sm:text-5xl">{t.dailyMannaTitle}</h2>
 
-              {/* Glassmorphism Card */}
               <div className="relative mx-auto mt-12 max-w-3xl rounded-[32px] border border-white/60 bg-white/50 dark:bg-black/30 dark:border-white/10 p-8 shadow-[0_12px_40px_rgba(61,42,23,0.06)] backdrop-blur-xl transition-all duration-500 hover:shadow-[0_16px_50px_rgba(154,107,49,0.1)] sm:p-12">
-                {/* Decorative quotation marks */}
-                {/* <div className="absolute left-8 top-6 select-none font-serif text-[60px] leading-none text-[#d8b14c]/30 sm:left-10 sm:top-8">"</div> */}
-
                 <blockquote className="relative z-10 mx-auto max-w-2xl font-serif text-2xl leading-[1.3] text-[#24342b] dark:text-[#e4e4e7] sm:text-3xl lg:text-4xl">
                   {dailyMannaVerses[mannaIndex].verse}
                 </blockquote>
@@ -1313,7 +1469,6 @@ export default function App() {
                 )}
               </div>
 
-              {/* Neon Glowing Button */}
               <button
                 onClick={getNewVerse}
                 className="group relative mt-10 inline-flex items-center justify-center rounded-full bg-[#1c2920] px-8 py-4 text-sm font-bold uppercase tracking-widest text-white outline-none transition-all duration-300 hover:scale-105 hover:bg-[#2a3c2f] focus:ring-4 focus:ring-[#d8b14c]/40 active:scale-95"
@@ -1324,10 +1479,9 @@ export default function App() {
                 </span>
               </button>
 
-              {/* Verse of Day Image */}
               {todayVerseImage && (
                 <div className="mt-10 mx-auto max-w-3xl">
-                  <p className="text-xs font-semibold uppercase tracking-widest text-[#9a6b31] dark:text-[#d8b14c] mb-4">✦ Today's Verse Image ✦</p>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-[#9a6b31] dark:text-[#d8b14c] mb-4">Today's Verse Image</p>
                   <div className="rounded-[24px] overflow-hidden border border-white/60 dark:border-white/10 shadow-[0_12px_40px_rgba(61,42,23,0.1)]">
                     <img
                       src={todayVerseImage}
@@ -1338,10 +1492,9 @@ export default function App() {
                 </div>
               )}
 
-              {/* Verse of Day text if set by admin */}
               {todayVerse && (
                 <div className="mt-8 mx-auto max-w-3xl rounded-[24px] border border-[#d8b14c]/30 bg-[#d8b14c]/5 dark:bg-[#d8b14c]/10 p-6 text-center">
-                  <p className="text-xs font-bold uppercase tracking-widest text-[#9a6b31] dark:text-[#d8b14c] mb-3">✦ Pastor's Verse for Today ✦</p>
+                  <p className="text-xs font-bold uppercase tracking-widest text-[#9a6b31] dark:text-[#d8b14c] mb-3">Pastor's Verse for Today</p>
                   <blockquote className="font-serif text-xl text-[#24342b] dark:text-[#e4e4e7] italic leading-relaxed">{todayVerse.verse}</blockquote>
                   <p className="mt-3 font-bold text-[#9a6b31] dark:text-[#d8b14c]">{todayVerse.reference}</p>
                   {todayVerse.reflection && <p className="mt-3 text-sm text-[#5c675f] dark:text-gray-300">{todayVerse.reflection}</p>}
@@ -1351,17 +1504,18 @@ export default function App() {
           </section>
         )}
 
-        {adminData.sectionVisibility?.manna !== false && (
+        {/* ─── Mood Manna Section (Default Hidden, Toggleable in Admin) ─── */}
+        {adminData.sectionVisibility?.manna === true && (
           <section id="manna" className="relative scroll-mt-24 overflow-hidden px-5 py-16 sm:px-8 lg:py-24 bg-[#f7f2e8] dark:bg-[#121212]">
             <DarkFluidBackground />
             <div className="relative z-10 mx-auto max-w-4xl text-center">
-              <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[#9a6b31] dark:text-[#d8b14c]">✦ MANNA FOR YOUR SOUL ✦</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[#9a6b31] dark:text-[#d8b14c]">MANNA FOR YOUR SOUL</p>
               <h2 className="mt-3 font-serif text-4xl tracking-tight text-[#223328] dark:text-white sm:text-5xl">How are you feeling today?</h2>
-              <p className="mt-2 text-sm text-[#5c675f] dark:text-[#a1a1aa] max-w-md mx-auto">Select a category below to receive a customized scripture promise from God's Word</p>
+              {adminData.sectionVisibility?.showMannaCaption && (
+                <p className="mt-2 text-sm text-[#5c675f] dark:text-[#a1a1aa] max-w-md mx-auto">Select a category below to receive a customized scripture promise from God's Word</p>
+              )}
 
-              {/* Group Toggle Selector & Grid of Emotions */}
               <div ref={mannaRef}>
-                {/* Group Toggle Selector */}
                 <div className="mt-8 flex flex-wrap justify-center gap-3">
                   <button
                     onClick={() => {
@@ -1378,7 +1532,7 @@ export default function App() {
                       : 'bg-white/40 border-black/10 text-black/60 hover:bg-white/60 dark:bg-white/5 dark:border-white/10 dark:text-white/60 dark:hover:bg-white/10'
                       }`}
                   >
-                    <span className="text-base">😔</span> Downcast / Seeking Comfort
+                    Downcast / Seeking Comfort
                   </button>
                   <button
                     onClick={() => {
@@ -1395,11 +1549,10 @@ export default function App() {
                       : 'bg-white/40 border-black/10 text-black/60 hover:bg-white/60 dark:bg-white/5 dark:border-white/10 dark:text-white/60 dark:hover:bg-white/10'
                       }`}
                   >
-                    <span className="text-base">😊</span> Hope / Seeking Guidance
+                    Hope / Seeking Guidance
                   </button>
                 </div>
 
-                {/* Grid of Emotions */}
                 {activeMoodGroup && (
                   <div className="mt-6 flex flex-wrap justify-center gap-2 max-w-3xl mx-auto animate-fade-in">
                     {MOOD_CATEGORIES.filter(c => c.group === activeMoodGroup).map(c => {
@@ -1413,7 +1566,8 @@ export default function App() {
                             : 'bg-white/50 border-black/5 text-[#223328] hover:border-black/20 dark:bg-white/5 dark:border-white/5 dark:text-white/80 dark:hover:bg-white/10 dark:hover:border-white/20'
                             }`}
                         >
-                          <span>{c.emoji}</span> {c.label}
+                          {adminData.sectionVisibility?.showEmojis && <span>{c.emoji}</span>}
+                          {c.label}
                         </button>
                       );
                     })}
@@ -1421,7 +1575,6 @@ export default function App() {
                 )}
               </div>
 
-              {/* Conditional Display of Verse */}
               {moodVerse ? (
                 <div ref={verseRef} className="relative mx-auto mt-8 max-w-3xl rounded-[24px] border border-[#d8b14c]/30 bg-white/60 dark:bg-black/35 dark:border-white/10 p-6 shadow-[0_12px_40px_rgba(61,42,23,0.06)] backdrop-blur-xl transition-all duration-500 hover:shadow-[0_16px_50px_rgba(154,107,49,0.1)] sm:p-10 animate-fade-in">
                   <blockquote className="relative z-10 mx-auto max-w-2xl font-serif text-lg leading-relaxed text-[#24342b] dark:text-[#e4e4e7] sm:text-2xl italic">
@@ -1450,7 +1603,6 @@ export default function App() {
                 </div>
               ) : (
                 <div className="mt-10 py-12 text-center text-[#5c675f]/60 dark:text-white/35 italic flex flex-col items-center justify-center gap-2">
-                  <span className="text-4xl animate-bounce">📖</span>
                   <p className="text-sm">Choose an emotion above to receive a scripture promise...</p>
                 </div>
               )}
@@ -1458,10 +1610,9 @@ export default function App() {
           </section>
         )}
 
-
+        {/* ─── Contact & Connect Section ─── */}
         {adminData.sectionVisibility?.contact !== false && (
           <section id="contact" className="scroll-mt-24 px-5 py-16 sm:px-8 lg:py-24">
-
             <div className="mx-auto max-w-6xl">
               <div className="max-w-3xl">
                 <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[#9a6b31] dark:text-[#d8b14c]">{t.connectWithUs}</p>
@@ -1524,10 +1675,11 @@ export default function App() {
                     </div>
                   </div>
                 </div>
+
                 <form id="pray" className="rounded-[2rem] bg-white/75 dark:bg-black/30 dark:border-white/10 p-5 shadow-xl shadow-[#3d2a17]/8 ring-1 ring-[#e1d4be] sm:p-8">
                   <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#9a6b31] dark:text-[#d8b14c]">{t.sendPrayerRequest}</p>
                   <h3 className="mt-3 text-3xl font-semibold tracking-tight text-[#223328] dark:text-white">{t.prayForRequest}</h3>
-                  <label className="mt-6 grid gap-2 text-sm font-semibold text-[#33443a] dark:text-gray-200 dark:text-[#a1a1aa]">
+                  <label className="mt-6 grid gap-2 text-sm font-semibold text-[#33443a] dark:text-gray-200">
                     Prayer request
                     <textarea
                       value={prayerRequest}
@@ -1550,16 +1702,123 @@ export default function App() {
             </div>
           </section>
         )}
-
-
       </main>
 
-      <footer className="bg-[#17251d] px-5 py-8 text-white sm:px-8">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 text-sm text-white/70 sm:flex-row sm:items-center sm:justify-between">
-          <p className="font-serif text-lg text-white">{t.footerName}</p>
-          <p>{t.footerServices}</p>
+      {/* ─── Clean Footer: Only Church Address + Offering Link ─── */}
+      <footer className="bg-[#17251d] px-5 py-10 text-white sm:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 text-center sm:flex-row sm:text-left">
+          <div className="space-y-1">
+            <h3 className="font-serif text-lg font-bold text-white">Zion AG Church Main Sanctuary</h3>
+            <p className="max-w-md text-sm text-white/80 leading-relaxed">
+              22, Maruthi Nagar Main Rd, beside Amravati Hotel, Zuzuvadi, BTM Layout, Bengaluru - 560068
+            </p>
+          </div>
+          <button
+            onClick={() => setIsOfferingOpen(true)}
+            className="inline-flex items-center gap-2 rounded-full bg-[#d8b14c] px-6 py-3 text-sm font-bold text-[#1a2a1e] transition hover:bg-[#f0ca60] focus:outline-none focus:ring-4 focus:ring-[#d8b14c]/30 shadow-lg shrink-0"
+          >
+            Give an Offering
+          </button>
         </div>
       </footer>
+
+      {/* ─── Event Details Modal ─── */}
+      {selectedEventModal && (() => {
+        const evtDate = selectedEventModal.date
+          ? new Date(selectedEventModal.date + 'T00:00:00')
+          : null;
+        const formattedDate = evtDate
+          ? evtDate.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+          : '';
+        return (
+          <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center sm:p-4 bg-black/70 backdrop-blur-sm" onClick={() => setSelectedEventModal(null)}>
+            <div
+              className="relative w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl bg-[#faf7f2] dark:bg-[#17231b] border-t border-[#d8b14c]/30 sm:border shadow-2xl overflow-hidden max-h-[92dvh] flex flex-col"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Image / close */}
+              {selectedEventModal.image ? (
+                <div className="relative h-44 sm:h-52 w-full shrink-0 overflow-hidden">
+                  <img src={selectedEventModal.image} alt={selectedEventModal.title} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                  <button
+                    onClick={() => setSelectedEventModal(null)}
+                    className="absolute top-3 right-3 h-8 w-8 flex items-center justify-center text-white bg-black/50 hover:bg-black/70 rounded-full text-base transition"
+                    aria-label="Close"
+                  >✕</button>
+                </div>
+              ) : (
+                <div className="flex justify-end px-4 pt-4 shrink-0">
+                  <button onClick={() => setSelectedEventModal(null)} className="h-8 w-8 flex items-center justify-center rounded-full text-[#8a5f2b] dark:text-[#d8b14c] hover:bg-[#d8b14c]/15 text-base transition">✕</button>
+                </div>
+              )}
+
+              {/* Scrollable body */}
+              <div className="overflow-y-auto px-5 pt-4 pb-6 sm:px-6">
+                {/* Category badge */}
+                {selectedEventModal.category && (
+                  <span className="inline-block px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-[#8a5f2b] dark:text-[#d8b14c] bg-[#d8b14c]/15 rounded-full mb-2">
+                    {selectedEventModal.category}
+                  </span>
+                )}
+
+                {/* Title */}
+                <h3 className="font-serif text-xl sm:text-2xl font-bold text-[#223328] dark:text-white leading-snug mb-4">
+                  {selectedEventModal.title}
+                </h3>
+
+                {/* Info rows */}
+                <div className="space-y-2.5 mb-4">
+                  {formattedDate && (
+                    <div className="flex items-start gap-3 text-sm">
+                      <span className="shrink-0 mt-0.5 text-[#d8b14c] text-base">📅</span>
+                      <div>
+                        <p className="font-semibold text-[#223328] dark:text-white text-xs uppercase tracking-wider mb-0.5">Date</p>
+                        <p className="text-[#4f5c53] dark:text-gray-300">{formattedDate}</p>
+                      </div>
+                    </div>
+                  )}
+                  {selectedEventModal.time && (
+                    <div className="flex items-start gap-3 text-sm">
+                      <span className="shrink-0 mt-0.5 text-[#d8b14c] text-base">🕐</span>
+                      <div>
+                        <p className="font-semibold text-[#223328] dark:text-white text-xs uppercase tracking-wider mb-0.5">Time</p>
+                        <p className="text-[#4f5c53] dark:text-gray-300">{selectedEventModal.time}</p>
+                      </div>
+                    </div>
+                  )}
+                  {selectedEventModal.venue && (
+                    <div className="flex items-start gap-3 text-sm">
+                      <span className="shrink-0 mt-0.5 text-[#d8b14c] text-base">📍</span>
+                      <div>
+                        <p className="font-semibold text-[#223328] dark:text-white text-xs uppercase tracking-wider mb-0.5">Venue</p>
+                        <p className="text-[#4f5c53] dark:text-gray-300">{selectedEventModal.venue}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Description */}
+                {selectedEventModal.description && (
+                  <p className="text-sm leading-relaxed text-[#4f5c53] dark:text-gray-200 border-t border-[#dfd2bd] dark:border-white/10 pt-4">
+                    {selectedEventModal.description}
+                  </p>
+                )}
+
+                {/* Close button */}
+                <div className="mt-5 flex justify-end">
+                  <button
+                    onClick={() => setSelectedEventModal(null)}
+                    className="px-6 py-2.5 rounded-full bg-[#223328] dark:bg-[#d8b14c] text-white dark:text-[#1c2920] font-semibold text-sm hover:opacity-90 active:scale-95 transition"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Lightbox for Announcements */}
       {selectedImage && (
