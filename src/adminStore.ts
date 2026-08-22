@@ -324,177 +324,106 @@ export function saveHideAnnouncementText(hide: boolean) {
 }
 
 // ─── Events & Calendar ────────────────────────────────────────────────────────
-export const DEFAULT_EVENTS: EventItem[] = [
-  {
-    id: 'default-promise-prayer',
-    title: 'Promise Prayer Service',
-    date: '2026-08-01',
-    time: '5:00 AM - 6:30 AM',
-    venue: 'Zion AG Church Main Sanctuary, Madiwala',
-    description: 'Start every month in the presence of God. The promise word of the month is shared through the man of God.',
-    image: './images/church-hero.webp',
-    category: 'Promise Prayer',
-    active: true,
-    createdAt: Date.now(),
-  },
-  {
-    id: 'default-fasting-prayer',
-    title: 'Fasting & Prayer Service',
-    date: '2026-08-14',
-    time: '10:00 AM - 1:00 PM',
-    venue: 'Zion AG Church Main Sanctuary, Madiwala',
-    description: 'Join us for a powerful time of seeking God in fasting, prayer, and intercessory worship.',
-    image: './announcement_images/fasting_prayer.jpeg',
-    category: 'Prayer',
-    active: true,
-    createdAt: Date.now(),
-  },
-  {
-    id: 'default-youth-meeting',
-    title: 'Youth Fellowship Gathering',
-    date: '2026-08-22',
-    time: '5:30 PM - 7:30 PM',
-    venue: 'Zion AG Youth Hall, Madiwala',
-    description: 'An energetic gathering of young believers for worship, spiritual growth, fellowship, and discussion.',
-    image: './announcement_images/yout_meeting.jpeg',
-    category: 'Youth',
-    active: true,
-    createdAt: Date.now(),
-  },
-  {
-    id: 'default-healing-service',
-    title: 'Sunday Worship & Healing Service',
-    date: '2026-08-10',
-    time: '8:00 AM & 9:30 AM',
-    venue: 'Dharmaram Auditorium, Christ University College',
-    description: 'Experience God’s presence, miracle power, healing, and worship together as a church family.',
-    image: './images/church-hero.webp',
-    category: 'Worship',
-    active: true,
-    createdAt: Date.now(),
-  },
-];
+export const DEFAULT_EVENTS: EventItem[] = [];
 
 export function getEvents(): EventItem[] {
   const loaded = load<EventItem[]>(KEYS.EVENTS, []);
-  if (loaded.length === 0) return DEFAULT_EVENTS;
-  const DEFAULT_IDS = new Set(DEFAULT_EVENTS.map(e => e.id));
-  // If all stored events are only default IDs (user hasn't added custom events yet),
-  // return the fresh DEFAULT_EVENTS so updated dates always show.
-  const isOnlyDefaults = loaded.every(e => DEFAULT_IDS.has(e.id));
-  if (isOnlyDefaults) return DEFAULT_EVENTS;
-  return ensureArray<EventItem>(loaded);
+  // Filter out any legacy hardcoded default items that had incorrect date mappings
+  const legacyIds = new Set(['default-promise-prayer', 'default-fasting-prayer', 'default-youth-meeting', 'default-healing-service']);
+  return ensureArray<EventItem>(loaded).filter(e => !legacyIds.has(e.id));
 }
 
 export function saveEvents(list: EventItem[]) {
   save(KEYS.EVENTS, list);
 }
 
-// ─── Recurring Event Templates ────────────────────────────────────────────────
-// These auto-generate for any month viewed on the calendar.
-// dayOfMonth: fixed day (1 = 1st of month)
-// weekday: 0=Sun, 1=Mon, … 6=Sat
-// weekOfMonth: 1=first occurrence, 2=second, 3=third, 4=fourth
-
-interface RecurringTemplate {
-  id: string;
-  title: string;
-  dayOfMonth?: number;
-  weekday?: number;
-  weekOfMonth?: number;
-  time: string;
-  venue: string;
-  description: string;
-  image: string;
-  category: string;
-}
-
-const RECURRING_TEMPLATES: RecurringTemplate[] = [
-  {
-    id: 'rec-promise-prayer',
-    title: 'Promise Prayer Service',
-    dayOfMonth: 1,
-    time: '5:00 AM – 6:30 AM',
-    venue: 'Zion AG Church Main Sanctuary, Madiwala',
-    description: 'Start every month in the presence of God. The promise word of the month is shared through the man of God.',
-    image: './images/church-hero.webp',
-    category: 'Promise Prayer',
-  },
-  {
-    id: 'rec-fasting-prayer',
-    title: 'Fasting & Prayer Service',
-    weekday: 4, // Thursday
-    weekOfMonth: 2,
-    time: '10:00 AM – 1:00 PM',
-    venue: 'Zion AG Church Main Sanctuary, Madiwala',
-    description: 'Join us for a powerful time of seeking God in fasting, prayer, and intercessory worship.',
-    image: './announcement_images/fasting_prayer.jpeg',
-    category: 'Prayer',
-  },
-  {
-    id: 'rec-youth-meeting',
-    title: 'Youth Fellowship Gathering',
-    weekday: 6, // Saturday
-    weekOfMonth: 4,
-    time: '5:30 PM – 7:30 PM',
-    venue: 'Zion AG Youth Hall, Madiwala',
-    description: 'An energetic gathering of young believers for worship, spiritual growth, fellowship, and discussion.',
-    image: './announcement_images/yout_meeting.jpeg',
-    category: 'Youth',
-  },
-  {
-    id: 'rec-sunday-worship',
-    title: 'Sunday Worship & Healing Service',
-    weekday: 0, // Sunday
-    weekOfMonth: 2,
-    time: '8:00 AM & 9:30 AM',
-    venue: 'Dharmaram Auditorium, Christ University College',
-    description: "Experience God's presence, miracle power, healing, and worship together as a church family.",
-    image: './images/church-hero.webp',
-    category: 'Worship',
-  },
-];
-
-/** Returns the calendar-day (1-based) of the nth occurrence of weekday in the given month, or -1 if it doesn't exist. */
-function getNthWeekdayOfMonth(year: number, month: number, weekday: number, n: number): number {
-  const firstDayOfMonth = new Date(year, month, 1).getDay();
-  const daysInMon = new Date(year, month + 1, 0).getDate();
-  const day = 1 + ((weekday - firstDayOfMonth + 7) % 7) + (n - 1) * 7;
-  return day <= daysInMon ? day : -1;
-}
-
-/**
- * Generates recurring event instances for a given year/month.
- * These are merged with stored events in the calendar view.
- */
+// ─── Recurring Event Generator ────────────────────────────────────────────────
+// Auto-generates events for any month matching the exact Ministry schedule.
 export function getRecurringEventInstances(year: number, month: number): EventItem[] {
   const daysInMon = new Date(year, month + 1, 0).getDate();
   const results: EventItem[] = [];
 
-  for (const tmpl of RECURRING_TEMPLATES) {
-    let day = -1;
+  for (let day = 1; day <= daysInMon; day++) {
+    const dateObj = new Date(year, month, day);
+    const weekday = dateObj.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
-    if (tmpl.dayOfMonth !== undefined) {
-      day = tmpl.dayOfMonth <= daysInMon ? tmpl.dayOfMonth : -1;
-    } else if (tmpl.weekday !== undefined && tmpl.weekOfMonth !== undefined) {
-      day = getNthWeekdayOfMonth(year, month, tmpl.weekday, tmpl.weekOfMonth);
+    // 1st Day of Month -> Promise Prayer Service
+    if (day === 1) {
+      results.push({
+        id: `rec-promise-prayer-${dateStr}`,
+        title: 'Promise Prayer Service',
+        date: dateStr,
+        time: '5:00 AM – 6:30 AM',
+        venue: 'Zion AG Church Main Sanctuary, Madiwala',
+        description: 'Begin each month in God’s presence. The promise word of the month is shared through the man of God.',
+        image: './images/church-hero.webp',
+        category: 'Promise Prayer',
+        active: true,
+        createdAt: 0,
+      });
     }
 
-    if (day < 1) continue;
+    // Every Sunday (weekday 0) -> Sunday Worship & Healing Service
+    if (weekday === 0) {
+      results.push({
+        id: `rec-sunday-worship-${dateStr}`,
+        title: 'Sunday Worship & Healing Service',
+        date: dateStr,
+        time: '8:00 AM & 9:30 AM (Healing Service 7:30 PM)',
+        venue: 'Dharmaram Auditorium / Main Sanctuary',
+        description: 'Our Lord is a miracle-working God. Join us for Sunday worship and dedicated healing service.',
+        image: './images/church-hero.webp',
+        category: 'Worship',
+        active: true,
+        createdAt: 0,
+      });
+    }
 
-    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    results.push({
-      id: `${tmpl.id}-${dateStr}`,
-      title: tmpl.title,
-      date: dateStr,
-      time: tmpl.time,
-      venue: tmpl.venue,
-      description: tmpl.description,
-      image: tmpl.image,
-      category: tmpl.category,
-      active: true,
-      createdAt: 0,
-    });
+    // Every Wednesday (weekday 3) -> Bible Study
+    if (weekday === 3) {
+      results.push({
+        id: `rec-bible-study-${dateStr}`,
+        title: 'Bible Study (Online)',
+        date: dateStr,
+        time: '7:00 PM (Online)',
+        venue: 'Google Meet',
+        description: 'Well-trained and certified scholars teach the truth on Google Meet. We help people think, question, and grow.',
+        image: './images/church-hero.webp',
+        category: 'Prayer',
+        active: true,
+        createdAt: 0,
+      });
+    }
+
+    // Every Saturday (weekday 6) -> Fasting Prayer & Youth Fellowship
+    if (weekday === 6) {
+      results.push({
+        id: `rec-fasting-prayer-${dateStr}`,
+        title: 'Fasting & Prayer Service',
+        date: dateStr,
+        time: '10:00 AM – 12:00 PM',
+        venue: 'Zion AG Church Main Sanctuary, Madiwala',
+        description: 'Fasting prayer to help people overcome barriers. As Esther’s story shows — prayer can break any barrier.',
+        image: './announcement_images/fasting_prayer.jpeg',
+        category: 'Prayer',
+        active: true,
+        createdAt: 0,
+      });
+
+      results.push({
+        id: `rec-youth-meeting-${dateStr}`,
+        title: 'Youth Fellowship Gathering',
+        date: dateStr,
+        time: '7:00 PM – 8:30 PM',
+        venue: 'Zion AG Youth Hall, Madiwala',
+        description: 'Fun-filled activities, mentorship, and Bible teaching to help youth overcome everyday life barriers.',
+        image: './announcement_images/yout_meeting.jpeg',
+        category: 'Youth',
+        active: true,
+        createdAt: 0,
+      });
+    }
   }
 
   return results;

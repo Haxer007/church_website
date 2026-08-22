@@ -64,48 +64,56 @@ const getMinistries = (t: any) => [
     emoji: "🙌",
     description: t.minHealingDesc,
     time: t.minHealingTime,
+    image: "./images/poster_revival.webp",
   },
   {
     name: t.minFastingName,
     emoji: "🕊️",
     description: t.minFastingDesc,
     time: t.minFastingTime,
+    image: "./announcement_images/fasting_prayer.jpeg",
   },
   {
     name: t.minBibleName,
     emoji: "📖",
     description: t.minBibleDesc,
     time: t.minBibleTime,
+    image: "./announcement_images/carecells.jpeg",
   },
   {
     name: t.minKidsName,
     emoji: "👧",
     description: t.minKidsDesc,
     time: t.minKidsTime,
+    image: "./announcement_images/kids_bible_club.jpeg",
   },
   {
     name: t.minTeensName,
     emoji: "🧑‍🤝‍🧑",
     description: t.minTeensDesc,
     time: t.minTeensTime,
+    image: "./images/poster_youth.webp",
   },
   {
     name: t.minYouthName,
     emoji: "⚡",
     description: t.minYouthDesc,
     time: t.minYouthTime,
+    image: "./announcement_images/yout_meeting.jpeg",
   },
   {
     name: t.minWomenName,
     emoji: "🌸",
     description: t.minWomenDesc,
     time: t.minWomenTime,
+    image: "./announcement_images/girls_fellowship.jpeg",
   },
   {
     name: t.minPromiseName,
     emoji: "🌅",
     description: t.minPromiseDesc,
     time: t.minPromiseTime,
+    image: "./images/poster_prayer.webp",
   },
 ];
 
@@ -667,7 +675,7 @@ export default function App() {
     : "Hello Zion AG Church, I would like to share a prayer request.";
   const prayerWhatsappLink = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(prayerMessage)}`;
 
-  const [selectedEventModal, setSelectedEventModal] = useState<EventItem | null>(null);
+  const [selectedEventModalGroup, setSelectedEventModalGroup] = useState<{ events: EventItem[]; index: number } | null>(null);
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
 
   const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
@@ -1174,17 +1182,20 @@ export default function App() {
                 {getMinistries(t).map((ministry) => (
                   <article
                     key={ministry.name}
-                    onClick={() => setSelectedEventModal({
-                      id: ministry.name,
-                      title: ministry.name,
-                      date: 'Weekly / Monthly Schedule',
-                      time: ministry.time,
-                      venue: 'Zion AG Church Main Sanctuary / Christ University',
-                      description: ministry.description,
-                      image: './images/church-hero.webp',
-                      category: 'Ministry Event',
-                      active: true,
-                      createdAt: Date.now(),
+                    onClick={() => setSelectedEventModalGroup({
+                      events: [{
+                        id: ministry.name,
+                        title: ministry.name,
+                        date: '',
+                        time: ministry.time,
+                        venue: 'Zion AG Church Main Sanctuary / Christ University',
+                        description: ministry.description,
+                        image: ministry.image,
+                        category: 'Ministry Overview',
+                        active: true,
+                        createdAt: Date.now(),
+                      }],
+                      index: 0,
                     })}
                     className="group relative flex h-full flex-col overflow-hidden rounded-[20px] sm:rounded-[28px] border border-white/60 bg-white/50 dark:bg-black/30 dark:border-white/10 p-4 sm:p-6 text-center shadow-[0_12px_30px_rgba(61,42,23,0.08)] -translate-y-1 cursor-pointer backdrop-blur-[12px] transition-all duration-300 ease-out hover:-translate-y-2 hover:border-[#d8b14c]/50 dark:border-[#d8b14c]/30 hover:shadow-[0_20px_40px_rgba(154,107,49,0.15)] active:scale-105"
                   >
@@ -1243,36 +1254,34 @@ export default function App() {
                   <div className="mt-10 sm:mt-16 rounded-[24px] sm:rounded-[32px] border border-[#d8b14c]/25 bg-white/70 dark:bg-black/40 shadow-[0_16px_48px_rgba(61,42,23,0.10)] dark:shadow-[0_16px_48px_rgba(0,0,0,0.35)] backdrop-blur-xl overflow-hidden">
 
                     {/* ── Card Header ── */}
-                    <div className="relative px-4 pt-5 pb-4 sm:px-8 sm:pt-7 sm:pb-5 border-b border-[#d8ccb8]/50 dark:border-white/8 bg-gradient-to-r from-[#223328]/5 to-transparent dark:from-[#d8b14c]/5 dark:to-transparent">
+                    <div className="relative px-4 pt-5 pb-4 sm:px-8 sm:pt-7 sm:pb-5 border-b border-[#d8ccb8]/50 dark:border-white/8 bg-gradient-to-r from-[#223328]/5 to-transparent dark:from-[#d8b14c]/5 dark:to-transparent flex flex-col items-center text-center">
                       {/* decorative orb */}
                       <div className="pointer-events-none absolute -top-12 -right-12 h-40 w-40 rounded-full bg-[#d8b14c]/10 blur-2xl" />
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-[#9a6b31] dark:text-[#d8b14c]">Church Calendar</p>
-                          <h3 className="mt-0.5 font-serif text-xl sm:text-2xl font-bold text-[#223328] dark:text-white leading-tight">
-                            Promise Prayer &amp; Events
-                          </h3>
-                        </div>
-                        {/* Month navigator */}
-                        <div className="flex items-center gap-0.5 rounded-xl border border-[#d8ccb8] dark:border-white/10 bg-white/60 dark:bg-white/5 overflow-hidden">
-                          <button
-                            onClick={() => setCalendarMonth(new Date(year, month - 1, 1))}
-                            className="h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center text-lg font-bold text-[#8a5f2b] dark:text-[#d8b14c] hover:bg-[#f6d49b]/40 dark:hover:bg-white/10 transition-colors"
-                            aria-label="Previous Month"
-                          >‹</button>
-                          <span className="px-2 sm:px-3 font-serif font-bold text-sm sm:text-base text-[#223328] dark:text-white min-w-[120px] sm:min-w-[140px] text-center select-none">
-                            {MONTH_NAMES[month]} {year}
-                          </span>
-                          <button
-                            onClick={() => setCalendarMonth(new Date(year, month + 1, 1))}
-                            className="h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center text-lg font-bold text-[#8a5f2b] dark:text-[#d8b14c] hover:bg-[#f6d49b]/40 dark:hover:bg-white/10 transition-colors"
-                            aria-label="Next Month"
-                          >›</button>
-                        </div>
+                      
+                      <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-[#9a6b31] dark:text-[#d8b14c]">Church Calendar</p>
+                      <h3 className="mt-0.5 font-serif text-xl sm:text-2xl font-bold text-[#223328] dark:text-white leading-tight">
+                        Promise Prayer &amp; Events
+                      </h3>
+                      
+                      {/* Month navigator */}
+                      <div className="mt-3 flex items-center gap-0.5 rounded-xl border border-[#d8ccb8] dark:border-white/10 bg-white/60 dark:bg-white/5 overflow-hidden">
+                        <button
+                          onClick={() => setCalendarMonth(new Date(year, month - 1, 1))}
+                          className="h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center text-lg font-bold text-[#8a5f2b] dark:text-[#d8b14c] hover:bg-[#f6d49b]/40 dark:hover:bg-white/10 transition-colors"
+                          aria-label="Previous Month"
+                        >‹</button>
+                        <span className="px-2 sm:px-3 font-serif font-bold text-sm sm:text-base text-[#223328] dark:text-white min-w-[120px] sm:min-w-[140px] text-center select-none">
+                          {MONTH_NAMES[month]} {year}
+                        </span>
+                        <button
+                          onClick={() => setCalendarMonth(new Date(year, month + 1, 1))}
+                          className="h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center text-lg font-bold text-[#8a5f2b] dark:text-[#d8b14c] hover:bg-[#f6d49b]/40 dark:hover:bg-white/10 transition-colors"
+                          aria-label="Next Month"
+                        >›</button>
                       </div>
 
-                      {/* Category legend – scrollable horizontally on mobile */}
-                      <div className="mt-3 flex gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
+                      {/* Category legend */}
+                      <div className="mt-3 flex flex-wrap justify-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
                         {Object.entries(CATS).filter(([k]) => k !== 'default').map(([cat, s]) => (
                           <span key={cat} className={`shrink-0 flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${s.pill}`}>
                             <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
@@ -1311,7 +1320,7 @@ export default function App() {
                             return (
                               <div
                                 key={d}
-                                onClick={() => hasEvents ? setSelectedEventModal(dayEvents[0]) : undefined}
+                                onClick={() => hasEvents ? setSelectedEventModalGroup({ events: dayEvents, index: 0 }) : undefined}
                                 className={`aspect-square sm:aspect-auto sm:min-h-[64px] rounded-lg sm:rounded-xl p-1 sm:p-2 flex flex-col transition-all duration-150 border ${isToday
                                     ? 'border-[#d8b14c] bg-[#f6d49b]/30 dark:bg-[#d8b14c]/15 shadow-sm'
                                     : hasEvents
@@ -1337,7 +1346,10 @@ export default function App() {
                                       {dayEvents.slice(0, 3).map(evt => (
                                         <button
                                           key={evt.id}
-                                          onClick={() => setSelectedEventModal(evt)}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedEventModalGroup({ events: dayEvents, index: Math.max(0, dayEvents.findIndex(item => item.id === evt.id)) });
+                                          }}
                                           className={`h-[5px] w-[5px] rounded-full ${getCat(evt.category).dot} active:scale-150 transition-transform`}
                                           title={evt.title}
                                         />
@@ -1349,7 +1361,10 @@ export default function App() {
                                     {dayEvents.slice(0, 2).map(evt => (
                                       <button
                                         key={evt.id}
-                                        onClick={() => setSelectedEventModal(evt)}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedEventModalGroup({ events: dayEvents, index: Math.max(0, dayEvents.findIndex(item => item.id === evt.id)) });
+                                        }}
                                         className={`w-full text-left truncate rounded-md px-1.5 py-[2px] text-[10px] font-semibold transition-opacity hover:opacity-75 ${getCat(evt.category).pill}`}
                                         title={evt.title}
                                       >
@@ -1385,7 +1400,7 @@ export default function App() {
                             return (
                               <button
                                 key={evt.id}
-                                onClick={() => setSelectedEventModal(evt)}
+                                onClick={() => setSelectedEventModalGroup({ events: [evt], index: 0 })}
                                 className="w-full text-left group flex gap-2.5 rounded-xl border border-[#d8ccb8]/50 dark:border-white/8 bg-white/60 dark:bg-white/4 hover:border-[#d8b14c]/50 dark:hover:border-white/20 hover:bg-[#f6d49b]/20 dark:hover:bg-white/8 p-2.5 transition-all duration-150 shadow-sm hover:shadow-md"
                               >
                                 <div className={`shrink-0 flex flex-col items-center justify-center h-10 w-10 rounded-xl ${c.badge} ${c.badgeText} shadow-sm`}>
@@ -1722,49 +1737,141 @@ export default function App() {
         </div>
       </footer>
 
-      {/* ─── Event Details Modal ─── */}
-      {selectedEventModal && (() => {
-        const evtDate = selectedEventModal.date
-          ? new Date(selectedEventModal.date + 'T00:00:00')
+      {/* ─── Event Details Modal (Slideshow for Multiple Events) ─── */}
+      {selectedEventModalGroup && (() => {
+        const { events, index } = selectedEventModalGroup;
+        const currentEvent = events[index] || events[0];
+        const hasMultiple = events.length > 1;
+
+        const nextEvent = (e?: React.MouseEvent) => {
+          e?.stopPropagation();
+          setSelectedEventModalGroup(prev => prev ? { ...prev, index: (prev.index + 1) % prev.events.length } : null);
+        };
+        const prevEvent = (e?: React.MouseEvent) => {
+          e?.stopPropagation();
+          setSelectedEventModalGroup(prev => prev ? { ...prev, index: (prev.index - 1 + prev.events.length) % prev.events.length } : null);
+        };
+
+        const evtDate = currentEvent.date
+          ? new Date(currentEvent.date + (currentEvent.date.includes('T') ? '' : 'T00:00:00'))
           : null;
-        const formattedDate = evtDate
+        const formattedDate = evtDate && !isNaN(evtDate.getTime())
           ? evtDate.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
           : '';
+
         return (
-          <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center sm:p-4 bg-black/70 backdrop-blur-sm" onClick={() => setSelectedEventModal(null)}>
+          <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center sm:p-4 bg-black/70 backdrop-blur-sm" onClick={() => setSelectedEventModalGroup(null)}>
             <div
               className="relative w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl bg-[#faf7f2] dark:bg-[#17231b] border-t border-[#d8b14c]/30 sm:border shadow-2xl overflow-hidden max-h-[92dvh] flex flex-col"
               onClick={e => e.stopPropagation()}
             >
+              {/* Top Slideshow Header Bar if multiple events */}
+              {hasMultiple && (
+                <div className="flex items-center justify-between px-4 py-2 bg-[#223328] dark:bg-black/60 text-white text-xs font-semibold shrink-0">
+                  <button onClick={prevEvent} className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 transition flex items-center gap-1 active:scale-95">
+                    ‹ Prev
+                  </button>
+                  <span className="font-mono text-[11px] tracking-wider text-[#f6d49b]">
+                    Event {index + 1} of {events.length}
+                  </span>
+                  <button onClick={nextEvent} className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 transition flex items-center gap-1 active:scale-95">
+                    Next ›
+                  </button>
+                </div>
+              )}
+
               {/* Image / close */}
-              {selectedEventModal.image ? (
-                <div className="relative h-44 sm:h-52 w-full shrink-0 overflow-hidden">
-                  <img src={selectedEventModal.image} alt={selectedEventModal.title} className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+              {currentEvent.image ? (
+                <div
+                  className="relative max-h-64 sm:max-h-80 w-full shrink-0 overflow-hidden bg-black/90 flex items-center justify-center cursor-pointer group"
+                  onClick={() => setSelectedImage(currentEvent.image!)}
+                  title="Click to view full image"
+                >
+                  {/* Blurred backdrop image */}
+                  <img
+                    key={`bg-${currentEvent.id}-${index}`}
+                    src={currentEvent.image}
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute inset-0 w-full h-full object-cover blur-md opacity-40 scale-110"
+                  />
+                  {/* Full uncropped poster image */}
+                  <img
+                    key={`img-${currentEvent.id}-${index}`}
+                    src={currentEvent.image}
+                    alt={currentEvent.title}
+                    className="relative z-10 max-h-64 sm:max-h-80 w-full object-contain transition-transform duration-300 group-hover:scale-[1.02]"
+                  />
+
+                  {/* Overlay navigation arrows for slideshow */}
+                  {hasMultiple && (
+                    <>
+                      <button
+                        onClick={prevEvent}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 z-30 h-9 w-9 flex items-center justify-center text-white bg-black/60 hover:bg-black/80 rounded-full text-lg shadow-md transition active:scale-90"
+                        aria-label="Previous event"
+                      >‹</button>
+                      <button
+                        onClick={nextEvent}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 z-30 h-9 w-9 flex items-center justify-center text-white bg-black/60 hover:bg-black/80 rounded-full text-lg shadow-md transition active:scale-90"
+                        aria-label="Next event"
+                      >›</button>
+                    </>
+                  )}
+
+                  {/* Expand hint badge */}
+                  <span className="absolute bottom-2.5 right-2.5 z-20 rounded-full bg-black/60 backdrop-blur-sm px-2.5 py-1 text-[10px] font-medium text-white/90 flex items-center gap-1">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" /></svg>
+                    Tap to expand
+                  </span>
+
                   <button
-                    onClick={() => setSelectedEventModal(null)}
-                    className="absolute top-3 right-3 h-8 w-8 flex items-center justify-center text-white bg-black/50 hover:bg-black/70 rounded-full text-base transition"
+                    onClick={(e) => { e.stopPropagation(); setSelectedEventModalGroup(null); }}
+                    className="absolute top-3 right-3 z-30 h-8 w-8 flex items-center justify-center text-white bg-black/60 hover:bg-black/80 rounded-full text-base transition"
                     aria-label="Close"
                   >✕</button>
                 </div>
               ) : (
-                <div className="flex justify-end px-4 pt-4 shrink-0">
-                  <button onClick={() => setSelectedEventModal(null)} className="h-8 w-8 flex items-center justify-center rounded-full text-[#8a5f2b] dark:text-[#d8b14c] hover:bg-[#d8b14c]/15 text-base transition">✕</button>
+                <div className="flex items-center justify-between px-4 pt-4 shrink-0">
+                  {hasMultiple ? (
+                    <div className="flex items-center gap-2">
+                      <button onClick={prevEvent} className="h-7 w-7 flex items-center justify-center rounded-full bg-[#d8b14c]/20 text-[#8a5f2b] dark:text-[#d8b14c] font-bold text-sm active:scale-90">‹</button>
+                      <span className="text-xs font-semibold text-[#8a5f2b] dark:text-[#d8b14c]">Event {index + 1} of {events.length}</span>
+                      <button onClick={nextEvent} className="h-7 w-7 flex items-center justify-center rounded-full bg-[#d8b14c]/20 text-[#8a5f2b] dark:text-[#d8b14c] font-bold text-sm active:scale-90">›</button>
+                    </div>
+                  ) : <div />}
+                  <button onClick={() => setSelectedEventModalGroup(null)} className="h-8 w-8 flex items-center justify-center rounded-full text-[#8a5f2b] dark:text-[#d8b14c] hover:bg-[#d8b14c]/15 text-base transition">✕</button>
                 </div>
               )}
 
               {/* Scrollable body */}
               <div className="overflow-y-auto px-5 pt-4 pb-6 sm:px-6">
-                {/* Category badge */}
-                {selectedEventModal.category && (
-                  <span className="inline-block px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-[#8a5f2b] dark:text-[#d8b14c] bg-[#d8b14c]/15 rounded-full mb-2">
-                    {selectedEventModal.category}
-                  </span>
-                )}
+                {/* Category badge & dot indicators */}
+                <div className="flex items-center justify-between mb-2">
+                  {currentEvent.category ? (
+                    <span className="inline-block px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-[#8a5f2b] dark:text-[#d8b14c] bg-[#d8b14c]/15 rounded-full">
+                      {currentEvent.category}
+                    </span>
+                  ) : <div />}
+
+                  {/* Dot indicators if multiple events */}
+                  {hasMultiple && (
+                    <div className="flex items-center gap-1.5">
+                      {events.map((_, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setSelectedEventModalGroup(prev => prev ? { ...prev, index: i } : null)}
+                          className={`h-2 rounded-full transition-all ${i === index ? 'w-5 bg-[#d8b14c]' : 'w-2 bg-[#d8b14c]/30 hover:bg-[#d8b14c]/50'}`}
+                          aria-label={`Go to event ${i + 1}`}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 {/* Title */}
                 <h3 className="font-serif text-xl sm:text-2xl font-bold text-[#223328] dark:text-white leading-snug mb-4">
-                  {selectedEventModal.title}
+                  {currentEvent.title}
                 </h3>
 
                 {/* Info rows */}
@@ -1778,38 +1885,55 @@ export default function App() {
                       </div>
                     </div>
                   )}
-                  {selectedEventModal.time && (
+                  {currentEvent.time && (
                     <div className="flex items-start gap-3 text-sm">
                       <span className="shrink-0 mt-0.5 text-[#d8b14c] text-base">🕐</span>
                       <div>
                         <p className="font-semibold text-[#223328] dark:text-white text-xs uppercase tracking-wider mb-0.5">Time</p>
-                        <p className="text-[#4f5c53] dark:text-gray-300">{selectedEventModal.time}</p>
+                        <p className="text-[#4f5c53] dark:text-gray-300">{currentEvent.time}</p>
                       </div>
                     </div>
                   )}
-                  {selectedEventModal.venue && (
+                  {currentEvent.venue && (
                     <div className="flex items-start gap-3 text-sm">
                       <span className="shrink-0 mt-0.5 text-[#d8b14c] text-base">📍</span>
                       <div>
                         <p className="font-semibold text-[#223328] dark:text-white text-xs uppercase tracking-wider mb-0.5">Venue</p>
-                        <p className="text-[#4f5c53] dark:text-gray-300">{selectedEventModal.venue}</p>
+                        <p className="text-[#4f5c53] dark:text-gray-300">{currentEvent.venue}</p>
                       </div>
                     </div>
                   )}
                 </div>
 
                 {/* Description */}
-                {selectedEventModal.description && (
+                {currentEvent.description && (
                   <p className="text-sm leading-relaxed text-[#4f5c53] dark:text-gray-200 border-t border-[#dfd2bd] dark:border-white/10 pt-4">
-                    {selectedEventModal.description}
+                    {currentEvent.description}
                   </p>
                 )}
 
-                {/* Close button */}
-                <div className="mt-5 flex justify-end">
+                {/* Bottom slideshow navigation controls & Close button */}
+                <div className="mt-5 flex items-center justify-between gap-2 border-t border-[#dfd2bd]/50 dark:border-white/10 pt-4">
+                  {hasMultiple ? (
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={prevEvent}
+                        className="px-3 py-1.5 rounded-full border border-[#d8b14c]/40 text-[#8a5f2b] dark:text-[#d8b14c] text-xs font-semibold hover:bg-[#d8b14c]/10 active:scale-95 transition"
+                      >
+                        ‹ Prev
+                      </button>
+                      <button
+                        onClick={nextEvent}
+                        className="px-3 py-1.5 rounded-full border border-[#d8b14c]/40 text-[#8a5f2b] dark:text-[#d8b14c] text-xs font-semibold hover:bg-[#d8b14c]/10 active:scale-95 transition"
+                      >
+                        Next ›
+                      </button>
+                    </div>
+                  ) : <div />}
+
                   <button
-                    onClick={() => setSelectedEventModal(null)}
-                    className="px-6 py-2.5 rounded-full bg-[#223328] dark:bg-[#d8b14c] text-white dark:text-[#1c2920] font-semibold text-sm hover:opacity-90 active:scale-95 transition"
+                    onClick={() => setSelectedEventModalGroup(null)}
+                    className="px-6 py-2.5 rounded-full bg-[#223328] dark:bg-[#d8b14c] text-white dark:text-[#1c2920] font-semibold text-sm hover:opacity-90 active:scale-95 transition shrink-0"
                   >
                     Close
                   </button>
@@ -1820,14 +1944,14 @@ export default function App() {
         );
       })()}
 
-      {/* Lightbox for Announcements */}
+      {/* Lightbox for Announcements & Event Images */}
       {selectedImage && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 sm:p-8 overflow-hidden"
+          className="fixed inset-0 z-[300] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 sm:p-8 overflow-hidden"
           onClick={() => { setSelectedImage(null); setIsZoomed(false); }}
         >
           <button
-            className="absolute top-6 right-6 text-white hover:text-[#f6d49b] transition p-2 bg-black/40 hover:bg-black/60 rounded-full z-[110]"
+            className="absolute top-6 right-6 text-white hover:text-[#f6d49b] transition p-2 bg-black/40 hover:bg-black/60 rounded-full z-[310]"
             onClick={() => { setSelectedImage(null); setIsZoomed(false); }}
             aria-label="Close fullscreen image"
           >
