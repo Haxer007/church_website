@@ -145,7 +145,7 @@ const getContactLocations = (t: any, mapLinks: MapLinks) => [
   {
     name: t.hosaRoadBranch,
     address: ["324, Hosa Rd, Akshaya Layout", "Sai Sree Layout, Rayasandra", "Bengaluru - 560100"],
-    link: resolveMapLink(mapLinks.hosaRoadBranch),
+    link: resolveMapLink(mapLinks.hosaRoadBranch, "12.875359287352081, 77.6701366941601"),
     action: t.openMaps,
   },
 ];
