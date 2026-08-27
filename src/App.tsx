@@ -47,7 +47,7 @@ const MOOD_CATEGORIES: MoodCategory[] = [
 const mapsLink = "https://maps.app.goo.gl/QuRYUhwUz341j8hTA";
 const youtubeLiveLink = "https://www.youtube.com/@ZionAGChurchMadiwala/streams";
 const whatsappNumber = "917760404798";
-const emailAddress = "info@zionagchurch.co.in";
+const emailAddress = "info@zionagmadiwala.com";
 
 const getNavigation = (t: any) => [
   { label: t.navHome, href: "#home" },
@@ -1680,7 +1680,33 @@ export default function App() {
                 </p>
               </div>
 
-              <div className="mt-10 grid gap-8 lg:grid-cols-[1.05fr_0.95fr]">
+              <br />
+
+              {/* ─── Prayer Request Form Below Connect Info ─── */}
+              <form id="pray" className="rounded-[2rem] bg-white/90 dark:bg-[#1a261f]/90 dark:border-white/10 p-6 shadow-xl shadow-[#3d2a17]/8 ring-1 ring-[#e1d4be] sm:p-8 max-w-3xl">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#9a6b31] dark:text-[#d8b14c]">{t.sendPrayerRequest}</p>
+                <h3 className="mt-3 text-3xl font-semibold tracking-tight text-[#223328] dark:text-white">{t.prayForRequest}</h3>
+                <label className="mt-6 grid gap-2 text-sm font-semibold text-[#33443a] dark:text-gray-200">
+                  Prayer request
+                  <textarea
+                    value={prayerRequest}
+                    onChange={(event) => setPrayerRequest(event.target.value)}
+                    rows={6}
+                    className="resize-none rounded-2xl border border-[#d9cbb6] dark:border-[#333333] bg-[#fbf8f1] dark:bg-[#1e1e1e] px-4 py-3 font-normal outline-none transition focus:border-[#9a6b31] focus:ring-4 focus:ring-[#d9b16d]/20"
+                    placeholder={t.prayerPlaceholder}
+                  />
+                </label>
+                <a
+                  href={prayerWhatsappLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-[#223328] dark:bg-[#2a3f32] px-6 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#31483a] focus:outline-none focus:ring-4 focus:ring-[#223328]/20"
+                >
+                  {t.sendWhatsapp}
+                </a>
+              </form>
+
+              <div className="mt-10 flex flex-col gap-12">
                 <div className="space-y-8">
                   <div className="divide-y divide-[#d8ccb8] border-y border-[#d8ccb8] dark:border-[#333333]">
                     {getContactLocations(t, adminData.mapLinks).map((location) => (
@@ -1734,28 +1760,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <form id="pray" className="rounded-[2rem] bg-white/75 dark:bg-black/30 dark:border-white/10 p-5 shadow-xl shadow-[#3d2a17]/8 ring-1 ring-[#e1d4be] sm:p-8">
-                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#9a6b31] dark:text-[#d8b14c]">{t.sendPrayerRequest}</p>
-                  <h3 className="mt-3 text-3xl font-semibold tracking-tight text-[#223328] dark:text-white">{t.prayForRequest}</h3>
-                  <label className="mt-6 grid gap-2 text-sm font-semibold text-[#33443a] dark:text-gray-200">
-                    Prayer request
-                    <textarea
-                      value={prayerRequest}
-                      onChange={(event) => setPrayerRequest(event.target.value)}
-                      rows={7}
-                      className="resize-none rounded-2xl border border-[#d9cbb6] dark:border-[#333333] bg-[#fbf8f1] dark:bg-[#1e1e1e] px-4 py-3 font-normal outline-none transition focus:border-[#9a6b31] focus:ring-4 focus:ring-[#d9b16d]/20"
-                      placeholder={t.prayerPlaceholder}
-                    />
-                  </label>
-                  <a
-                    href={prayerWhatsappLink}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-[#223328] dark:bg-[#2a3f32] px-6 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#31483a] focus:outline-none focus:ring-4 focus:ring-[#223328]/20"
-                  >
-                    {t.sendWhatsapp}
-                  </a>
-                </form>
+
               </div>
             </div>
           </section>
