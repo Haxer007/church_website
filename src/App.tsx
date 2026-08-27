@@ -913,9 +913,9 @@ export default function App() {
                 </p>
                 <div className="flex flex-wrap justify-center gap-2">
                   {([
-                    { key: 'kn', emoji: '🕊️', label: t.serviceKn || 'ಕನ್ನಡ', sublabel: t.serviceKnSub || 'Kannada' },
-                    { key: 'ta', emoji: '⛪', label: t.serviceTa || 'தமிழ் + English', sublabel: t.serviceTaSub || 'Tamil & English' },
-                    { key: 'te', emoji: '✝️', label: t.serviceTe || 'తెలుగు + English', sublabel: t.serviceTeSub || 'Telugu & English' },
+                    { key: 'kn', emoji: '', label: t.serviceKn || 'ಕನ್ನಡ', sublabel: t.serviceKnSub || 'Kannada' },
+                    { key: 'ta', emoji: '', label: t.serviceTa || 'தமிழ் + English', sublabel: t.serviceTaSub || 'Tamil & English' },
+                    { key: 'te', emoji: '', label: t.serviceTe || 'తెలుగు + English', sublabel: t.serviceTeSub || 'Telugu & English' },
                   ] as const).map(svc => (
                     <button
                       key={svc.key}
@@ -926,7 +926,7 @@ export default function App() {
                         }`}
                     >
 
-                      <span className="text-lg">{svc.emoji}</span>
+                      {/* <span className="text-lg">{svc.emoji}</span> */}
                       <span className={`ml-2 text-sm font-bold ${selectedService === svc.key ? 'text-[#f6d49b]' : 'text-white/90'}`}>
                         {svc.label}
                       </span>
@@ -977,7 +977,7 @@ export default function App() {
                         <div className="rounded-2xl border border-[#d8b14c]/30 bg-gradient-to-br from-[#1a2a1e]/80 to-[#0f1a13]/80 p-5 backdrop-blur-sm shadow-xl text-left">
                           <div className="flex items-start gap-4">
                             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-[#d8b14c]/15 text-2xl font-bold text-[#f6d49b]">
-                              TIME
+                              ⏰
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
@@ -1257,12 +1257,12 @@ export default function App() {
                     <div className="relative px-4 pt-5 pb-4 sm:px-8 sm:pt-7 sm:pb-5 border-b border-[#d8ccb8]/50 dark:border-white/8 bg-gradient-to-r from-[#223328]/5 to-transparent dark:from-[#d8b14c]/5 dark:to-transparent flex flex-col items-center text-center">
                       {/* decorative orb */}
                       <div className="pointer-events-none absolute -top-12 -right-12 h-40 w-40 rounded-full bg-[#d8b14c]/10 blur-2xl" />
-                      
+
                       <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-[#9a6b31] dark:text-[#d8b14c]">Church Calendar</p>
                       <h3 className="mt-0.5 font-serif text-xl sm:text-2xl font-bold text-[#223328] dark:text-white leading-tight">
                         Promise Prayer &amp; Events
                       </h3>
-                      
+
                       {/* Month navigator */}
                       <div className="mt-3 flex items-center gap-0.5 rounded-xl border border-[#d8ccb8] dark:border-white/10 bg-white/60 dark:bg-white/5 overflow-hidden">
                         <button
@@ -1322,18 +1322,18 @@ export default function App() {
                                 key={d}
                                 onClick={() => hasEvents ? setSelectedEventModalGroup({ events: dayEvents, index: 0 }) : undefined}
                                 className={`aspect-square sm:aspect-auto sm:min-h-[64px] rounded-lg sm:rounded-xl p-1 sm:p-2 flex flex-col transition-all duration-150 border ${isToday
-                                    ? 'border-[#d8b14c] bg-[#f6d49b]/30 dark:bg-[#d8b14c]/15 shadow-sm'
-                                    : hasEvents
-                                      ? 'border-[#d8ccb8] dark:border-white/15 bg-[#f7f2e8]/80 dark:bg-white/6 hover:border-[#d8b14c]/60 cursor-pointer'
-                                      : 'border-[#ece6d8]/60 dark:border-white/5 bg-transparent hover:bg-[#f6d49b]/10 dark:hover:bg-white/4'
+                                  ? 'border-[#d8b14c] bg-[#f6d49b]/30 dark:bg-[#d8b14c]/15 shadow-sm'
+                                  : hasEvents
+                                    ? 'border-[#d8ccb8] dark:border-white/15 bg-[#f7f2e8]/80 dark:bg-white/6 hover:border-[#d8b14c]/60 cursor-pointer'
+                                    : 'border-[#ece6d8]/60 dark:border-white/5 bg-transparent hover:bg-[#f6d49b]/10 dark:hover:bg-white/4'
                                   }`}
                               >
                                 {/* Date number */}
                                 <span className={`text-[11px] sm:text-sm font-bold leading-none self-start ${isToday
-                                    ? 'inline-flex h-[18px] w-[18px] sm:h-6 sm:w-6 items-center justify-center rounded-full bg-[#d8b14c] text-[#1a2a1e] text-[10px] sm:text-xs'
-                                    : hasEvents
-                                      ? 'text-[#223328] dark:text-white'
-                                      : 'text-[#9a8c7a] dark:text-white/30'
+                                  ? 'inline-flex h-[18px] w-[18px] sm:h-6 sm:w-6 items-center justify-center rounded-full bg-[#d8b14c] text-[#1a2a1e] text-[10px] sm:text-xs'
+                                  : hasEvents
+                                    ? 'text-[#223328] dark:text-white'
+                                    : 'text-[#9a8c7a] dark:text-white/30'
                                   }`}>
                                   {d}
                                 </span>
