@@ -117,23 +117,35 @@ const getMinistries = (t: any) => [
   },
 ];
 
+const isMobileDevice = () => {
+  if (typeof window === 'undefined') return false;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || ('ontouchstart' in window && window.innerWidth < 768);
+};
+
+const resolveMapLink = (webUrl: string, geoCoords?: string) => {
+  if (geoCoords && isMobileDevice()) {
+    return `geo:${geoCoords}`;
+  }
+  return webUrl;
+};
+
 const getContactLocations = (t: any, mapLinks: MapLinks) => [
   {
     name: t.mainChurch,
     address: ["22, Maruthi Nagar Main Rd", "beside Amravati Hotel, Zuzuvadi", "BTM Layout, Bengaluru - 560068"],
-    link: mapLinks.mainChurch,
+    link: resolveMapLink(mapLinks.mainChurch, "12.9256216,77.613779"),
     action: t.openMaps,
   },
   {
     name: t.sundayVenue,
     address: ["Christ University College", "Dharmaram Auditorium", "Hosur Road - 560029"],
-    link: mapLinks.sundayVenue,
+    link: resolveMapLink(mapLinks.sundayVenue, "12.9351478,77.6032145"),
     action: t.getDirections,
   },
   {
     name: t.hosaRoadBranch,
     address: ["324, Hosa Rd, Akshaya Layout", "Sai Sree Layout, Rayasandra", "Bengaluru - 560100"],
-    link: mapLinks.hosaRoadBranch,
+    link: resolveMapLink(mapLinks.hosaRoadBranch),
     action: t.openMaps,
   },
 ];
@@ -953,19 +965,19 @@ export default function App() {
                           time: '8:00 AM',
                           venue: t.venueMaruthi || 'Zion AG Church, Maruthi Nagar',
                           address: t.addressMaruthi || '22, Maruthi Nagar Main Rd, beside Amravati Hotel, BTM Layout, Bengaluru - 560068',
-                          mapLink: adminData.mapLinks.mainChurch,
+                          mapLink: resolveMapLink(adminData.mapLinks.mainChurch, "12.9256216,77.613779"),
                         },
                         ta: {
                           time: '8:00 AM',
                           venue: t.venueDharmaram || 'Dharmaram Auditorium, Christ University College',
                           address: t.addressDharmaram || 'Dharmaram College Post, Hosur Road, Bengaluru - 560029',
-                          mapLink: adminData.mapLinks.sundayVenue,
+                          mapLink: resolveMapLink(adminData.mapLinks.sundayVenue, "12.9351478,77.6032145"),
                         },
                         te: {
                           time: '9:30 AM',
                           venue: t.venueDharmaram || 'Dharmaram Auditorium, Christ University College',
                           address: t.addressDharmaram || 'Dharmaram College Post, Hosur Road, Bengaluru - 560029',
-                          mapLink: adminData.mapLinks.sundayVenue,
+                          mapLink: resolveMapLink(adminData.mapLinks.sundayVenue, "12.9351478,77.6032145"),
                         },
                       };
                       const activeService = selectedService || lastSelectedService;
