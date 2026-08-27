@@ -683,7 +683,7 @@ export default function App() {
 
   return (
     <div className={`min-h-screen bg-[#f7f2e8] dark:bg-[#121212] text-[#24342b] dark:text-[#e4e4e7] ${lang === "te" ? "telugu-font" : ""} ${lang !== "en" ? "indic-lang" : ""}`}>
-      <header className="animate-header fixed inset-x-0 top-0 z-50 border-b border-white/25 bg-[#f7f2e8]/60 dark:bg-[#121212]/60 backdrop-blur-xl">
+      <header className="animate-header fixed inset-x-0 top-0 z-50 border-b border-[#e5dcce] dark:border-white/10 bg-[#f7f2e8]/92 dark:bg-[#121212]/92 backdrop-blur-md">
         <nav className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8" aria-label="Main navigation">
           <a href="#home" onClick={closeMenu} className="flex items-center gap-3 font-serif text-lg tracking-tight text-[#223328] dark:text-white sm:text-xl shrink-0 whitespace-nowrap">
             <img src="./images/church_logo.webp" alt="Zion AG Logo" className="h-8 w-auto drop-shadow-sm" />
@@ -897,14 +897,19 @@ export default function App() {
           <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-[#17251d]/92 via-[#17251d]/45 to-[#17251d]/10" />
 
           <div className="animate-hero-copy relative z-10 mx-auto w-full max-w-7xl flex justify-center">
-            <div className="max-w-4xl w-full rounded-[2rem] border border-white/10 bg-black/30 p-6 shadow-2xl backdrop-blur-md sm:p-10 lg:p-12 text-center flex flex-col items-center justify-center">
+            <div className="max-w-4xl w-full rounded-[2rem] border border-white/15 bg-[#17251d]/80 p-6 shadow-2xl backdrop-blur-md sm:p-10 lg:p-12 text-center flex flex-col items-center justify-center">
               <p className="mb-4 text-sm font-semibold uppercase tracking-[0.34em] text-[#f6d49b]">Madiwala, Bengaluru</p>
               <h1 className="font-serif text-5xl leading-[0.95] tracking-tight text-white sm:text-7xl lg:text-8xl">
                 Zion AG Church
               </h1>
-              <p className="mt-5 max-w-xl text-base leading-7 text-white/82 sm:text-lg mx-auto">
-                {t.christCentered}
-              </p>
+              <div className="mt-5 max-w-xl text-base leading-7 text-white/82 sm:text-lg mx-auto text-center space-y-2">
+                {(t.christCentered || '')
+                  .replace(/church!\s*(?=We are)/g, 'church!\n')
+                  .split('\n')
+                  .map((line, idx) => (
+                    <p key={idx}>{line.trim()}</p>
+                  ))}
+              </div>
 
               {/* ── Service Selector ── */}
               <div className="mt-8 flex flex-col items-center">
@@ -1044,7 +1049,7 @@ export default function App() {
                 {t.aboutTitle}
               </h2>
 
-              <div className="mt-12 rounded-[32px] border border-white/60 bg-white/50 dark:bg-black/30 dark:border-white/10 p-6 text-left shadow-[0_12px_40px_rgba(61,42,23,0.06)] backdrop-blur-xl transition-all duration-500 hover:shadow-[0_16px_50px_rgba(154,107,49,0.1)] sm:p-12 sm:text-center">
+              <div className="mt-12 rounded-[32px] border border-white/80 bg-white/90 dark:bg-[#1a261f]/90 dark:border-white/10 p-6 text-left shadow-[0_12px_40px_rgba(61,42,23,0.06)] backdrop-blur-md transition-all duration-500 hover:shadow-[0_16px_50px_rgba(154,107,49,0.1)] sm:p-12 sm:text-center">
                 <p className="mb-6 text-[16px] leading-[1.8] text-[#4f5c53] dark:text-gray-200 sm:text-[18px]">
                   {t.aboutP1}
                 </p>
@@ -1100,7 +1105,41 @@ export default function App() {
                 {t.announcementsTitle}
               </h2>
             </div>
-            <div className="mt-12 mx-auto max-w-7xl relative z-10">
+            <div className="mt-12 mx-auto max-w-[1400px] relative z-10 px-2 sm:px-6">
+              {/* Left Scroll Button (Desktop) */}
+              <button
+                onClick={() => {
+                  if (carouselRef.current) {
+                    const card = carouselRef.current.children[0] as HTMLElement;
+                    const shift = card ? card.clientWidth + 24 : 320;
+                    carouselRef.current.scrollBy({ left: -shift, behavior: 'smooth' });
+                  }
+                }}
+                className="hidden md:flex absolute left-2 top-1/2 -translate-y-1/2 z-30 h-12 w-12 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white backdrop-blur-md transition-all hover:bg-black/80 hover:scale-110 shadow-xl active:scale-95"
+                aria-label="Previous announcement"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+
+              {/* Right Scroll Button (Desktop) */}
+              <button
+                onClick={() => {
+                  if (carouselRef.current) {
+                    const card = carouselRef.current.children[0] as HTMLElement;
+                    const shift = card ? card.clientWidth + 24 : 320;
+                    carouselRef.current.scrollBy({ left: shift, behavior: 'smooth' });
+                  }
+                }}
+                className="hidden md:flex absolute right-2 top-1/2 -translate-y-1/2 z-30 h-12 w-12 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white backdrop-blur-md transition-all hover:bg-black/80 hover:scale-110 shadow-xl active:scale-95"
+                aria-label="Next announcement"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+
               <div
                 ref={carouselRef}
                 onScroll={handleScroll}
@@ -1108,22 +1147,26 @@ export default function App() {
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUpOrLeave}
                 onMouseLeave={handleMouseUpOrLeave}
-                className={`flex gap-6 overflow-x-auto pb-12 pt-8 px-5 sm:px-8 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${isDragging ? "cursor-grabbing select-none" : "cursor-grab"
+                className={`flex gap-6 overflow-x-auto pb-14 pt-10 px-5 sm:px-12 lg:px-20 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${isDragging ? "cursor-grabbing select-none" : "cursor-grab"
                   } ${isDragging ? "" : "snap-x snap-mandatory scroll-smooth"}`}
+                style={{
+                  WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%)',
+                  maskImage: 'linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%)'
+                }}
               >
                 {extendedPosters.map((poster, index) => {
-                  let ratioClass = 'w-[320px] sm:w-[480px] aspect-[16/9]';
+                  let ratioClass = 'w-[280px] sm:w-[360px] md:w-[380px] aspect-[16/9]';
                   if (adminData.announcementAspectRatio === '4:3') {
-                    ratioClass = 'w-[290px] sm:w-[400px] aspect-[4/3]';
+                    ratioClass = 'w-[240px] sm:w-[300px] md:w-[320px] aspect-[4/3]';
                   } else if (adminData.announcementAspectRatio === '9:16') {
-                    ratioClass = 'w-[200px] sm:w-[280px] aspect-[9/16]';
+                    ratioClass = 'w-[180px] sm:w-[210px] md:w-[220px] aspect-[9/16]';
                   }
                   return (
                     <div
                       key={index}
-                      className={`snap-center shrink-0 ${ratioClass} rounded-[24px] overflow-hidden border border-white/40 cursor-pointer transition-all duration-500 group relative ${activeIndex === index
-                        ? "scale-[1.15] shadow-[0_30px_60px_rgba(154,107,49,0.3)] z-10 border-white/80"
-                        : "scale-[0.92] opacity-60 shadow-[0_12px_40px_rgba(61,42,23,0.08)] hover:opacity-100 z-0"
+                      className={`snap-center shrink-0 ${ratioClass} rounded-[20px] sm:rounded-[24px] overflow-hidden border border-white/40 cursor-pointer transition-all duration-500 group relative ${activeIndex === index
+                        ? "scale-[1.06] shadow-[0_20px_45px_rgba(154,107,49,0.25)] z-10 border-white/80"
+                        : "scale-[0.95] opacity-70 shadow-[0_8px_25px_rgba(61,42,23,0.06)] hover:opacity-100 z-0"
                         }`}
                       onClick={(e) => {
                         if (dragDistance.current > 10) {
@@ -1197,7 +1240,7 @@ export default function App() {
                       }],
                       index: 0,
                     })}
-                    className="group relative flex h-full flex-col overflow-hidden rounded-[20px] sm:rounded-[28px] border border-white/60 bg-white/50 dark:bg-black/30 dark:border-white/10 p-4 sm:p-6 text-center shadow-[0_12px_30px_rgba(61,42,23,0.08)] -translate-y-1 cursor-pointer backdrop-blur-[12px] transition-all duration-300 ease-out hover:-translate-y-2 hover:border-[#d8b14c]/50 dark:border-[#d8b14c]/30 hover:shadow-[0_20px_40px_rgba(154,107,49,0.15)] active:scale-105"
+                    className="group relative flex h-full flex-col overflow-hidden rounded-[20px] sm:rounded-[28px] border border-white/80 bg-white/90 dark:bg-[#1a261f]/90 dark:border-white/10 p-4 sm:p-6 text-center shadow-[0_12px_30px_rgba(61,42,23,0.08)] -translate-y-1 cursor-pointer backdrop-blur-md transition-all duration-300 ease-out hover:-translate-y-2 hover:border-[#d8b14c]/50 dark:border-[#d8b14c]/30 hover:shadow-[0_20px_40px_rgba(154,107,49,0.15)] active:scale-105"
                   >
                     {adminData.sectionVisibility?.showEmojis && (
                       <div className="relative z-10 mb-3 sm:mb-4 text-[24px] sm:text-[32px] transition-transform duration-300 group-hover:scale-110">
@@ -1251,7 +1294,7 @@ export default function App() {
                   .sort((a, b) => a.date.localeCompare(b.date));
 
                 return (
-                  <div className="mt-10 sm:mt-16 rounded-[24px] sm:rounded-[32px] border border-[#d8b14c]/25 bg-white/70 dark:bg-black/40 shadow-[0_16px_48px_rgba(61,42,23,0.10)] dark:shadow-[0_16px_48px_rgba(0,0,0,0.35)] backdrop-blur-xl overflow-hidden">
+                  <div className="mt-10 sm:mt-16 rounded-[24px] sm:rounded-[32px] border border-[#d8b14c]/30 bg-white/90 dark:bg-[#1a261f]/90 shadow-[0_16px_48px_rgba(61,42,23,0.10)] dark:shadow-[0_16px_48px_rgba(0,0,0,0.35)] backdrop-blur-md overflow-hidden">
 
                     {/* ── Card Header ── */}
                     <div className="relative px-4 pt-5 pb-4 sm:px-8 sm:pt-7 sm:pb-5 border-b border-[#d8ccb8]/50 dark:border-white/8 bg-gradient-to-r from-[#223328]/5 to-transparent dark:from-[#d8b14c]/5 dark:to-transparent flex flex-col items-center text-center">
@@ -1429,7 +1472,7 @@ export default function App() {
         {adminData.sectionVisibility?.promisePrayers !== false && (
           <section id="promise-prayers" className="relative px-5 py-16 sm:px-8 lg:py-24 bg-white/40 dark:bg-[#121212]/80">
             <DarkFluidBackground />
-            <div className="mx-auto max-w-4xl rounded-[32px] border border-[#d8b14c]/30 bg-white/70 dark:bg-black/30 dark:border-white/10 p-8 shadow-[0_12px_40px_rgba(154,107,49,0.08)] backdrop-blur-xl sm:p-12 text-center">
+            <div className="mx-auto max-w-4xl rounded-[32px] border border-[#d8b14c]/30 bg-white/90 dark:bg-[#1a261f]/90 dark:border-white/10 p-8 shadow-[0_12px_40px_rgba(154,107,49,0.08)] backdrop-blur-md sm:p-12 text-center">
               <h2 className="font-serif text-3xl sm:text-4xl text-[#223328] dark:text-white font-bold mb-4">{t.promisePrayers}</h2>
               <p className="text-lg leading-relaxed text-[#4f5c53] dark:text-gray-200 mb-8">
                 {t.promiseDesc}
@@ -1456,7 +1499,7 @@ export default function App() {
 
         {/* ─── Daily Manna Section ─── */}
         {adminData.sectionVisibility?.dailyManna !== false && (
-          <section id="daily-manna" className="relative scroll-mt-24 overflow-hidden px-5 py-16 sm:px-8 lg:py-24">
+          <section id="daily-manna" className="relative scroll-mt-24 overflow-hidden px-5 pt-12 pb-6 sm:px-8 sm:pt-16 sm:pb-8">
             <div className="pointer-events-none absolute inset-0 bg-[#f7f2e8] dark:bg-[#121212]">
               <div className="absolute left-1/2 top-1/2 h-[800px] w-[800px] -translate-x-1/2 -translate-y-1/2 bg-[radial-gradient(circle,rgba(216,177,76,0.06)_0%,transparent_70%)]" />
             </div>
@@ -1465,7 +1508,7 @@ export default function App() {
               <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[#9a6b31] dark:text-[#d8b14c]">{t.navDailyManna}</p>
               <h2 className="mt-3 font-serif text-4xl tracking-tight text-[#223328] dark:text-white sm:text-5xl">{t.dailyMannaTitle}</h2>
 
-              <div className="relative mx-auto mt-12 max-w-3xl rounded-[32px] border border-white/60 bg-white/50 dark:bg-black/30 dark:border-white/10 p-8 shadow-[0_12px_40px_rgba(61,42,23,0.06)] backdrop-blur-xl transition-all duration-500 hover:shadow-[0_16px_50px_rgba(154,107,49,0.1)] sm:p-12">
+              <div className="relative mx-auto mt-12 max-w-3xl rounded-[32px] border border-white/80 bg-white/90 dark:bg-[#1a261f]/90 dark:border-white/10 p-8 shadow-[0_12px_40px_rgba(61,42,23,0.06)] backdrop-blur-md transition-all duration-500 hover:shadow-[0_16px_50px_rgba(154,107,49,0.1)] sm:p-12">
                 <blockquote className="relative z-10 mx-auto max-w-2xl font-serif text-2xl leading-[1.3] text-[#24342b] dark:text-[#e4e4e7] sm:text-3xl lg:text-4xl">
                   {dailyMannaVerses[mannaIndex].verse}
                 </blockquote>
@@ -1486,7 +1529,7 @@ export default function App() {
 
               <button
                 onClick={getNewVerse}
-                className="group relative mt-10 inline-flex items-center justify-center rounded-full bg-[#1c2920] px-8 py-4 text-sm font-bold uppercase tracking-widest text-white outline-none transition-all duration-300 hover:scale-105 hover:bg-[#2a3c2f] focus:ring-4 focus:ring-[#d8b14c]/40 active:scale-95"
+                className="group relative mt-6 inline-flex items-center justify-center rounded-full bg-[#1c2920] px-8 py-4 text-sm font-bold uppercase tracking-widest text-white outline-none transition-all duration-300 hover:scale-105 hover:bg-[#2a3c2f] focus:ring-4 focus:ring-[#d8b14c]/40 active:scale-95"
               >
                 <span className="absolute inset-0 rounded-full bg-[#d8b14c] opacity-0 blur-md transition-opacity duration-300 group-hover:opacity-40"></span>
                 <span className="relative flex items-center gap-2">
@@ -1521,7 +1564,7 @@ export default function App() {
 
         {/* ─── Mood Manna Section (Default Hidden, Toggleable in Admin) ─── */}
         {adminData.sectionVisibility?.manna === true && (
-          <section id="manna" className="relative scroll-mt-24 overflow-hidden px-5 py-16 sm:px-8 lg:py-24 bg-[#f7f2e8] dark:bg-[#121212]">
+          <section id="manna" className="relative scroll-mt-24 overflow-hidden px-5 pt-4 pb-3 sm:px-8 sm:pt-6 sm:pb-4 bg-[#f7f2e8] dark:bg-[#121212]">
             <DarkFluidBackground />
             <div className="relative z-10 mx-auto max-w-4xl text-center">
               <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[#9a6b31] dark:text-[#d8b14c]">MANNA FOR YOUR SOUL</p>
@@ -1591,7 +1634,7 @@ export default function App() {
               </div>
 
               {moodVerse ? (
-                <div ref={verseRef} className="relative mx-auto mt-8 max-w-3xl rounded-[24px] border border-[#d8b14c]/30 bg-white/60 dark:bg-black/35 dark:border-white/10 p-6 shadow-[0_12px_40px_rgba(61,42,23,0.06)] backdrop-blur-xl transition-all duration-500 hover:shadow-[0_16px_50px_rgba(154,107,49,0.1)] sm:p-10 animate-fade-in">
+                <div ref={verseRef} className="relative mx-auto mt-8 max-w-3xl rounded-[24px] border border-[#d8b14c]/30 bg-white/90 dark:bg-[#1a261f]/90 dark:border-white/10 p-6 shadow-[0_12px_40px_rgba(61,42,23,0.06)] backdrop-blur-md transition-all duration-500 hover:shadow-[0_16px_50px_rgba(154,107,49,0.1)] sm:p-10 animate-fade-in">
                   <blockquote className="relative z-10 mx-auto max-w-2xl font-serif text-lg leading-relaxed text-[#24342b] dark:text-[#e4e4e7] sm:text-2xl italic">
                     "{moodVerse.verse}"
                   </blockquote>
@@ -1617,7 +1660,7 @@ export default function App() {
                   </button>
                 </div>
               ) : (
-                <div className="mt-10 py-12 text-center text-[#5c675f]/60 dark:text-white/35 italic flex flex-col items-center justify-center gap-2">
+                <div className="mt-4 py-2 text-center text-[#5c675f]/60 dark:text-white/35 italic flex flex-col items-center justify-center gap-2">
                   <p className="text-sm">Choose an emotion above to receive a scripture promise...</p>
                 </div>
               )}
@@ -1627,7 +1670,7 @@ export default function App() {
 
         {/* ─── Contact & Connect Section ─── */}
         {adminData.sectionVisibility?.contact !== false && (
-          <section id="contact" className="scroll-mt-24 px-5 py-16 sm:px-8 lg:py-24">
+          <section id="contact" className="scroll-mt-24 px-5 pt-6 pb-16 sm:px-8 lg:pt-8 lg:pb-24">
             <div className="mx-auto max-w-6xl">
               <div className="max-w-3xl">
                 <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[#9a6b31] dark:text-[#d8b14c]">{t.connectWithUs}</p>

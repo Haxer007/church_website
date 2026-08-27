@@ -16,8 +16,8 @@ export const translations: Record<Language, Record<string, string>> = {
     joinSunday: "Join Us This Sunday",
     watchLive: "Watch Live",
     aboutTitle: "About Our Church",
-    aboutP1: "Zion AG Church is located on Maruthi Nagar Main Road, Madiwala — easily accessible from BTM Layout, Koramangala, HSR Layout, Electronic City and Bannerghatta Road.",
-    aboutP2: "Zion AG Church is your sacred space to encounter the Saviour of your soul. Come with an OPEN HEART — the peace, joy, strength, and transformation He provides are best experienced, not just explained.",
+    aboutP1: "Zion AG Church is located on Maruthi Nagar Main Road, Madiwala - easily accessible from BTM Layout, Koramangala, HSR Layout, Electronic City and Bannerghatta Road.",
+    aboutP2: "Zion AG Church is your sacred space to encounter the Saviour of your soul. Come with an OPEN HEART - the peace, joy, strength, and transformation He provides are best experienced, not just explained.",
     aboutBanner: "📅 Stay connected beyond Sundays! Explore our sermons, updates, and upcoming events.",
     aboutQuote: "\"Join us and discover what it truly means to live in the light of God's love and purpose!\"",
     pastorName: "Rev. Ps. David Paul",
@@ -48,7 +48,7 @@ export const translations: Record<Language, Record<string, string>> = {
 
     // New additions
     worshipMorning: "Worship with us this Sunday morning at Christ University College.",
-    christCentered: "Welcome to Zion Assembly of God church! We are a Community of real people discovering what it means to follow Jesus. Whether you're a longtime believer or just exploring faith, you are welcome here just as you are. Take a look at our website and plan for your first visit to any of our gatherings.",
+    christCentered: "Welcome to Zion Assembly of God church!\nWe are a Community of real people, discovering what it means to follow Jesus. Whether you're a longtime believer or just exploring faith, you are welcome here just as you are. Take a look at our website and plan for your first visit to any of our gatherings.",
     getDirections: "Get Directions",
     openMaps: "Open Maps",
     mainChurch: "Main Church",
