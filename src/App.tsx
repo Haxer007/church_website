@@ -133,13 +133,13 @@ const getContactLocations = (t: any, mapLinks: MapLinks) => [
   {
     name: t.mainChurch,
     address: ["22, Maruthi Nagar Main Rd", "beside Amravati Hotel, Zuzuvadi", "BTM Layout, Bengaluru - 560068"],
-    link: resolveMapLink(mapLinks.mainChurch, "12.9256216,77.613779"),
+    link: resolveMapLink(mapLinks.mainChurch, "12.925698838155185, 77.61546283406435"),
     action: t.openMaps,
   },
   {
     name: t.sundayVenue,
     address: ["Christ University College", "Dharmaram Auditorium", "Hosur Road - 560029"],
-    link: resolveMapLink(mapLinks.sundayVenue, "12.9351478,77.6032145"),
+    link: resolveMapLink(mapLinks.sundayVenue, "12.936478217547881, 77.60609718910433"),
     action: t.getDirections,
   },
   {
