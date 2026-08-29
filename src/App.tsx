@@ -965,19 +965,19 @@ export default function App() {
                           time: '8:00 AM',
                           venue: t.venueMaruthi || 'Zion AG Church, Maruthi Nagar',
                           address: t.addressMaruthi || '22, Maruthi Nagar Main Rd, beside Amravati Hotel, BTM Layout, Bengaluru - 560068',
-                          mapLink: resolveMapLink(adminData.mapLinks.mainChurch, "12.9256216,77.613779"),
+                          mapLink: resolveMapLink(adminData.mapLinks.mainChurch, "12.925698838155185, 77.61546283406435"),
                         },
                         ta: {
                           time: '8:00 AM',
                           venue: t.venueDharmaram || 'Dharmaram Auditorium, Christ University College',
                           address: t.addressDharmaram || 'Dharmaram College Post, Hosur Road, Bengaluru - 560029',
-                          mapLink: resolveMapLink(adminData.mapLinks.sundayVenue, "12.9351478,77.6032145"),
+                          mapLink: resolveMapLink(adminData.mapLinks.sundayVenue, "12.936478217547881, 77.60609718910433"),
                         },
                         te: {
                           time: '9:30 AM',
                           venue: t.venueDharmaram || 'Dharmaram Auditorium, Christ University College',
                           address: t.addressDharmaram || 'Dharmaram College Post, Hosur Road, Bengaluru - 560029',
-                          mapLink: resolveMapLink(adminData.mapLinks.sundayVenue, "12.9351478,77.6032145"),
+                          mapLink: resolveMapLink(adminData.mapLinks.sundayVenue, "12.936478217547881, 77.60609718910433"),
                         },
                       };
                       const activeService = selectedService || lastSelectedService;
