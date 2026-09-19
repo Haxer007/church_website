@@ -909,7 +909,7 @@ export default function App() {
           <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-[#17251d]/92 via-[#17251d]/45 to-[#17251d]/10" />
 
           <div className="animate-hero-copy relative z-10 mx-auto w-full max-w-7xl flex justify-center">
-            <div className="max-w-4xl w-full rounded-[2rem] border border-white/15 bg-[#17251d]/80 p-6 shadow-2xl backdrop-blur-md sm:p-10 lg:p-12 text-center flex flex-col items-center justify-center">
+            <div className="max-w-4xl rounded-[2rem] border border-white/10 bg-black/30 p-6 shadow-2xl backdrop-blur-md sm:p-10 lg:p-12">
               <p className="mb-4 text-sm font-semibold uppercase tracking-[0.34em] text-[#f6d49b]">Madiwala, Bengaluru</p>
               <h1 className="font-serif text-5xl leading-[0.95] tracking-tight text-white sm:text-7xl lg:text-8xl">
                 Zion AG Church
