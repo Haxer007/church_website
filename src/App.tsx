@@ -695,7 +695,7 @@ export default function App() {
 
   return (
     <div className={`min-h-screen bg-[#f7f2e8] dark:bg-[#121212] text-[#24342b] dark:text-[#e4e4e7] ${lang === "te" ? "telugu-font" : ""} ${lang !== "en" ? "indic-lang" : ""}`}>
-      <header className="animate-header fixed inset-x-0 top-0 z-50 border-b border-[#e5dcce] dark:border-white/10 bg-[#f7f2e8]/92 dark:bg-[#121212]/92 backdrop-blur-md">
+      <header className="animate-header fixed inset-x-0 top-0 z-50 border-b border-white/25 bg-[#f7f2e8]/60 dark:bg-[#121212]/60 backdrop-blur-xl">
         <nav className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8" aria-label="Main navigation">
           <a href="#home" onClick={closeMenu} className="flex items-center gap-3 font-serif text-lg tracking-tight text-[#223328] dark:text-white sm:text-xl shrink-0 whitespace-nowrap">
             <img src="./images/church_logo.webp" alt="Zion AG Logo" className="h-8 w-auto drop-shadow-sm" />
