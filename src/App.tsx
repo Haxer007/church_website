@@ -124,7 +124,7 @@ const isMobileDevice = () => {
 
 const resolveMapLink = (webUrl: string, geoCoords?: string) => {
   if (geoCoords && isMobileDevice()) {
-    return `geo:${geoCoords}`;
+    return webUrl; // #`geo:${geoCoords}`;
   }
   return webUrl;
 };
